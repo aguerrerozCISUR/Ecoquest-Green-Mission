@@ -1,0 +1,2430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <title>EcoQuest Green Mission by Teacher Andrea Guerrero</title>
+  <meta name="description" content="EcoQuest Green Mission by Teacher Andrea Guerrero: learn English while sorting waste with Colombia's bin colors.">
+
+  <!-- Tailwind CSS & Lucide Icons (pinned versions) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- AI vision is loaded on demand:
+       main engine  = MobileCLIP (zero-shot, via Transformers.js) → recognizes every item in the database by description
+       backup engine = TensorFlow.js MobileNet + COCO-SSD (only if the main engine cannot load) -->
+  <link rel="preconnect" href="https://huggingface.co" crossorigin>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button, .no-select { user-select: none; -webkit-user-select: none; }
+    .font-heading { font-family: 'Fredoka', cursive; }
+
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .glass-card-hover { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+    @media (hover: hover) {
+      .glass-card-hover:hover {
+        transform: translateY(-4px);
+        border-color: rgba(59, 130, 246, 0.4);
+        box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.5);
+      }
+    }
+    .glass-card-hover:active { transform: scale(0.97); }
+
+    .bin-white-glow  { box-shadow: 0 0 25px rgba(248, 250, 252, 0.15); border-color: #cbd5e1; }
+    .bin-green-glow  { box-shadow: 0 0 25px rgba(34, 197, 94, 0.2);   border-color: #22c55e; }
+    .bin-black-glow  { box-shadow: 0 0 25px rgba(100, 116, 139, 0.3); border-color: #475569; }
+    .bin-special-glow{ box-shadow: 0 0 25px rgba(244, 63, 94, 0.25);  border-color: #f43f5e; }
+
+    .hero-gradient {
+      background: linear-gradient(135deg, #10b981 0%, #3b82f6 50%, #6366f1 100%);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    @keyframes pulse-subtle { 0%,100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+    .animate-pulse-subtle { animation: pulse-subtle 3s infinite ease-in-out; }
+
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%,60% { transform: translateX(-8px); }
+      40%,80% { transform: translateX(8px); }
+    }
+    .shake-anim { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+
+    @keyframes scan-sweep { 0% { top: 0%; } 50% { top: calc(100% - 4px); } 100% { top: 0%; } }
+    .scan-sweep { animation: scan-sweep 2.4s ease-in-out infinite; }
+
+    @keyframes pop-in { 0% { transform: translate(-50%, 20px); opacity: 0; } 100% { transform: translate(-50%, 0); opacity: 1; } }
+    .toast-in { animation: pop-in 0.25s ease-out both; }
+
+    @keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+    .bump { animation: bump 0.45s ease-out; }
+
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+  <!-- HEADER & PLAYER STATUS BAR -->
+  <header class="sticky top-0 z-40 glass-card border-b border-slate-800/80 px-3 sm:px-4 py-3">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 cursor-pointer no-select" onclick="switchTab('arcade')">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+          <i data-lucide="leaf" class="w-6 h-6"></i>
+        </div>
+        <div class="min-w-0 leading-tight">
+          <h1 class="font-heading font-bold text-base sm:text-xl tracking-wide hero-gradient">EcoQuest <span class="block sm:inline">Green Mission</span></h1>
+          <p class="text-[9px] sm:text-[11px] text-slate-400 font-semibold italic truncate">by Teacher Andrea Guerrero</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-5 bg-slate-900/80 px-3 sm:px-4 py-2 rounded-2xl border border-slate-800">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold text-sm" id="level-badge">L1</div>
+          <div>
+            <div class="flex justify-between gap-2 text-[11px] sm:text-xs font-semibold mb-1">
+              <span class="text-slate-300 hidden sm:inline" id="level-title">Eco Rookie</span>
+              <span class="text-indigo-400" id="xp-text">0 XP</span>
+            </div>
+            <div class="w-16 sm:w-24 bg-slate-800 h-2 rounded-full overflow-hidden">
+              <div id="xp-bar" class="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="h-6 w-[1px] bg-slate-800"></div>
+        <div class="flex items-center gap-1.5 text-amber-400" title="Combo streak (correct answers in a row)">
+          <i data-lucide="flame" class="w-5 h-5 fill-amber-400"></i>
+          <span class="font-heading font-bold text-base" id="streak-count">0</span>
+        </div>
+        <div class="h-6 w-[1px] bg-slate-800"></div>
+        <button id="sound-btn" onclick="toggleSound()" class="p-1.5 text-slate-400 hover:text-white transition" title="Toggle sound & voice">
+          <i data-lucide="volume-2" id="sound-icon" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-3 sm:px-4 py-6 flex-1 w-full flex flex-col gap-6">
+
+    <!-- TABS -->
+    <nav class="flex justify-center gap-1.5 p-1.5 bg-slate-900/90 rounded-2xl border border-slate-800 max-w-md mx-auto w-full no-select">
+      <button onclick="switchTab('camera')" id="tab-camera" class="tab-btn flex-1 py-2.5 px-2 sm:px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition text-slate-400 hover:text-white">
+        <i data-lucide="camera" class="w-4 h-4"></i><span>Camera</span>
+      </button>
+      <button onclick="switchTab('arcade')" id="tab-arcade" class="tab-btn flex-1 py-2.5 px-2 sm:px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition bg-indigo-600 text-white shadow-lg shadow-indigo-600/30">
+        <i data-lucide="gamepad-2" class="w-4 h-4"></i><span>Arcade</span>
+      </button>
+      <button onclick="switchTab('dictionary')" id="tab-dictionary" class="tab-btn flex-1 py-2.5 px-2 sm:px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition text-slate-400 hover:text-white">
+        <i data-lucide="book-open" class="w-4 h-4"></i><span>Eco-Dictionary</span>
+      </button>
+    </nav>
+
+    <!-- Mission banner (shared by all modes) -->
+    <div class="w-full max-w-2xl mx-auto bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 p-4 rounded-2xl border border-indigo-500/30 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-10 h-10 shrink-0 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+          <i data-lucide="target" class="w-6 h-6"></i>
+        </div>
+        <div class="min-w-0">
+          <div class="text-xs font-bold text-amber-400 uppercase tracking-wider">Active Eco Mission · +50 XP</div>
+          <div id="quest-desc" class="text-xs sm:text-sm font-semibold text-slate-200">Sort 3 White Bin recyclables correctly</div>
+          <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1.5">
+            <div id="quest-bar" class="bg-gradient-to-r from-amber-400 to-emerald-400 h-full transition-all duration-500" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+      <span id="quest-progress" class="font-heading font-extrabold text-lg text-emerald-400 shrink-0">0/3</span>
+    </div>
+
+    <!-- Student card + send progress to the teacher (Google Form) -->
+    <div class="w-full max-w-2xl mx-auto glass-card p-3 sm:p-4 rounded-2xl border border-emerald-500/25 flex flex-col sm:flex-row sm:items-center gap-3">
+      <button onclick="openStudentModal()" class="flex items-center gap-3 min-w-0 flex-1 text-left" title="Edit name and grade">
+        <div class="w-10 h-10 shrink-0 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-xl">🧑‍🎓</div>
+        <div class="min-w-0">
+          <div id="student-name" class="font-bold text-sm text-white truncate">Tap to write your name</div>
+          <div id="student-sub" class="text-[11px] text-slate-400 truncate">Grade — · Progress not sent yet</div>
+        </div>
+        <i data-lucide="pencil" class="w-4 h-4 text-slate-500 shrink-0"></i>
+      </button>
+      <button id="btn-send" onclick="sendProgress()" class="py-2.5 px-4 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-slate-950 font-extrabold rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-lg shadow-emerald-500/20">
+        <i data-lucide="send" class="w-4 h-4"></i><span id="btn-send-text">Send my progress to my teacher</span>
+      </button>
+    </div>
+
+    <!-- ================= VIEW 1: CAMERA ================= -->
+    <section id="view-camera" class="hidden flex-col items-center gap-5">
+      <div class="text-center max-w-xl">
+        <h2 class="font-heading text-2xl sm:text-3xl font-bold text-white mb-2">Scan Real World Waste</h2>
+        <p class="text-slate-400 text-sm">Point your camera at one object (bottle, peel, box, battery…). The AI names it in English, says it out loud, and teaches you which bin it goes in. Then sort it for real and earn XP!</p>
+      </div>
+
+      <div class="w-full max-w-lg glass-card rounded-3xl p-3 sm:p-4 flex flex-col items-center">
+        <div id="cam-stage" class="relative w-full aspect-[4/3] bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
+          <video id="webcam" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover hidden"></video>
+          <canvas id="camera-canvas" class="absolute inset-0 w-full h-full object-contain hidden bg-slate-950"></canvas>
+
+          <div id="camera-placeholder" class="text-center p-6 flex flex-col items-center gap-3">
+            <div class="w-16 h-16 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-400">
+              <i data-lucide="camera" class="w-8 h-8"></i>
+            </div>
+            <p class="text-slate-400 text-sm max-w-xs">Camera is off. Tap <b>Start Camera</b> or use <b>Photo</b> to take / choose a picture.</p>
+          </div>
+
+          <div id="scanner-line" class="hidden absolute left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-cyan-400 to-indigo-500 shadow-[0_0_15px_#38bdf8] scan-sweep"></div>
+          <!-- Aim guide -->
+          <div id="aim-guide" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[65%] aspect-square border-2 border-dashed border-cyan-300/60 rounded-2xl pointer-events-none"></div>
+
+          <div id="scan-overlay" class="hidden absolute inset-0 bg-slate-950/60 flex-col items-center justify-center gap-3">
+            <div class="w-12 h-12 rounded-full border-4 border-cyan-400/30 border-t-cyan-400 animate-spin"></div>
+            <p class="text-sm font-bold text-cyan-200" id="scan-overlay-text">Analyzing…</p>
+          </div>
+
+          <div id="ai-progress" class="hidden absolute bottom-0 left-0 right-0 p-3 bg-slate-950/85 border-t border-slate-800">
+            <div class="flex justify-between text-[11px] font-bold text-cyan-200 mb-1.5">
+              <span id="ai-progress-text">Downloading AI model…</span><span id="ai-progress-pct">0%</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div id="ai-progress-bar" class="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 transition-all duration-300" style="width:0%"></div>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1.5">First time only (≈60–90 MB, Wi-Fi recommended). Next time it opens instantly.</p>
+          </div>
+
+          <div id="ai-status" class="absolute top-2 left-2 text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-900/80 border border-slate-700 text-slate-300 flex items-center gap-1.5">
+            <span id="ai-dot" class="w-2 h-2 rounded-full bg-slate-500"></span><span id="ai-text">AI not loaded</span>
+          </div>
+          <button id="btn-flip" onclick="flipCamera()" class="hidden absolute top-2 right-2 p-2 rounded-xl bg-slate-900/80 border border-slate-700 text-slate-200" title="Switch camera">
+            <i data-lucide="switch-camera" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <div id="cam-error" class="hidden w-full mt-3 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3"></div>
+
+        <div class="flex gap-2 w-full mt-3">
+          <button id="btn-start-cam" onclick="startCamera()" class="flex-1 py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20">
+            <i data-lucide="power" class="w-5 h-5"></i><span>Start Camera</span>
+          </button>
+          <button id="btn-snap" onclick="captureAndScan()" class="hidden flex-1 py-3 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-extrabold rounded-xl transition items-center justify-center gap-2 shadow-lg shadow-cyan-500/25">
+            <i data-lucide="aperture" class="w-5 h-5"></i><span>Scan Object</span>
+          </button>
+          <button id="btn-retake" onclick="resetCameraView()" class="hidden flex-1 py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl transition items-center justify-center gap-2">
+            <i data-lucide="rotate-ccw" class="w-5 h-5"></i><span>Scan Again</span>
+          </button>
+          <label for="photo-input" class="py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer" title="Take or upload a photo">
+            <i data-lucide="image-plus" class="w-5 h-5"></i><span class="text-sm">Photo</span>
+          </label>
+          <input id="photo-input" type="file" accept="image/*" class="hidden">
+        </div>
+        <p class="text-[11px] text-slate-500 mt-2 text-center">Tip: fill the dashed frame with one object, on a plain background, with good light.</p>
+      </div>
+
+      <!-- Scan result card -->
+      <div id="camera-result-card" class="w-full max-w-lg glass-card rounded-3xl p-5 sm:p-6 hidden flex-col gap-4 border-l-4 border-l-cyan-500">
+        <div id="cam-uncertain" class="hidden flex-col gap-1">
+          <h3 class="font-heading text-xl font-bold text-white">Hmm, I'm not sure 🤔</h3>
+          <p class="text-sm text-slate-300">Pick the correct item below, or try again closer and with better light.</p>
+        </div>
+
+        <div id="cam-identified" class="flex-col gap-3">
+          <div class="flex justify-between items-start gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div id="cam-item-emoji" class="text-4xl w-14 h-14 shrink-0 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center">🧴</div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <h3 id="cam-item-word" class="font-heading text-2xl font-bold text-white">Plastic Bottle</h3>
+                  <button onclick="speakScanItem()" class="p-1.5 text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 rounded-lg shrink-0" title="Listen">
+                    <i data-lucide="volume-2" class="w-5 h-5"></i>
+                  </button>
+                </div>
+                <p id="cam-item-phonetic" class="text-xs text-indigo-300 italic font-mono mt-0.5"></p>
+              </div>
+            </div>
+            <span id="cam-confidence" class="text-xs font-bold px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg border border-slate-700 shrink-0">—</span>
+          </div>
+          <p id="cam-item-def" class="text-sm text-slate-300"></p>
+        </div>
+
+        <p id="cam-ai-saw" class="text-[11px] text-slate-500"></p>
+
+        <div id="cam-alternatives-wrap" class="flex flex-col gap-2">
+          <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider" id="cam-alt-title">Not right? Choose:</div>
+          <div id="cam-alternatives" class="flex flex-wrap gap-2"></div>
+          <select id="cam-manual-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200"></select>
+        </div>
+
+        <!-- TEACHING PANEL: the system tells the student where the object goes -->
+        <div id="cam-reveal" class="hidden flex-col gap-3">
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-widest text-center">👉 This object goes in the</p>
+          <div id="cam-bin-box" class="p-4 rounded-2xl flex items-center gap-4 bg-slate-900 border-2">
+            <div id="cam-bin-icon" class="w-16 h-16 shrink-0 rounded-2xl flex items-center justify-center text-3xl font-bold bg-slate-800">♻️</div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <div id="cam-bin-name" class="font-heading font-bold text-xl tracking-wide">WHITE BIN</div>
+                <button onclick="speakScanTeaching()" class="p-1 text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 rounded-lg shrink-0" title="Listen again">
+                  <i data-lucide="volume-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+              <div id="cam-bin-short" class="text-xs font-bold text-slate-300 uppercase tracking-wider"></div>
+              <div id="cam-bin-guide" class="text-xs text-slate-400 mt-1"></div>
+            </div>
+          </div>
+          <div id="cam-why" class="text-xs text-slate-300 bg-slate-900/80 p-3 rounded-xl border border-slate-800"></div>
+          <p id="cam-sentence" class="text-xs text-slate-300 bg-indigo-500/10 p-3 rounded-xl border border-indigo-500/20"></p>
+
+          <button id="cam-confirm" onclick="confirmScanSort()" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20">
+            <i data-lucide="check-circle" class="w-5 h-5"></i><span id="cam-confirm-text">Done! I put it in the bin</span>
+          </button>
+          <div id="cam-feedback" class="hidden text-center font-heading text-lg font-bold text-emerald-400"></div>
+          <button onclick="resetCameraView()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold rounded-xl transition flex items-center justify-center gap-2">
+            <i data-lucide="scan-line" class="w-5 h-5"></i><span>Scan Another Object</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= VIEW 2: ARCADE ================= -->
+    <section id="view-arcade" class="flex flex-col items-center gap-6">
+      <div class="w-full max-w-2xl glass-card rounded-3xl p-5 sm:p-8 flex flex-col items-center text-center relative overflow-hidden" id="quiz-card">
+        <div class="flex justify-between items-center w-full mb-4 text-xs text-slate-400 font-bold tracking-wider uppercase">
+          <span class="flex items-center gap-1.5"><i data-lucide="sparkles" class="w-4 h-4 text-cyan-400"></i> Challenge #<span id="question-num">1</span></span>
+          <span id="combo-pill" class="hidden px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30">x1.5 Combo</span>
+          <span class="text-emerald-400 font-mono" id="score-text">Score: 0</span>
+        </div>
+
+        <div class="relative group my-2">
+          <div class="w-32 h-32 sm:w-40 sm:h-40 rounded-3xl bg-slate-900/90 border-2 border-slate-700/80 flex items-center justify-center text-6xl sm:text-7xl shadow-2xl transition" id="item-emoji">🍾</div>
+          <button onclick="speakCurrentItem()" class="absolute -bottom-2 -right-2 w-11 h-11 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg transition active:scale-95" title="Listen pronunciation">
+            <i data-lucide="volume-2" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <h3 class="font-heading text-3xl sm:text-4xl font-extrabold text-white mt-4" id="item-word">Glass Bottle</h3>
+        <p class="text-sm text-indigo-300 italic font-mono mb-1" id="item-phonetic"></p>
+        <p class="text-xs text-slate-400 max-w-md" id="item-definition"></p>
+
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-5 mb-3">Where does this waste go? <span class="hidden sm:inline text-slate-600 normal-case tracking-normal">(keys 1–4)</span></p>
+        <div id="arcade-bins" class="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full"></div>
+      </div>
+
+      <div class="w-full max-w-2xl grid grid-cols-3 gap-3 text-center">
+        <div class="glass-card rounded-2xl p-3"><div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Accuracy</div><div id="stat-accuracy" class="font-heading text-xl font-bold text-emerald-400">—</div></div>
+        <div class="glass-card rounded-2xl p-3"><div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Best Combo</div><div id="stat-best" class="font-heading text-xl font-bold text-amber-400">0</div></div>
+        <div class="glass-card rounded-2xl p-3"><div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Words Learned</div><div id="stat-words" class="font-heading text-xl font-bold text-indigo-400">0</div></div>
+      </div>
+    </section>
+
+    <!-- ================= VIEW 3: DICTIONARY ================= -->
+    <section id="view-dictionary" class="hidden flex-col gap-5">
+      <div class="flex flex-col gap-4">
+        <div>
+          <h2 class="font-heading text-2xl sm:text-3xl font-bold text-white">Eco-Vocabulary Dictionary</h2>
+          <p class="text-slate-400 text-sm">Master environmental words in English and listen to the correct pronunciation. Bins follow Colombia's national color code (Resolución 2184 de 2019).</p>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
+          <div class="relative flex-1">
+            <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input id="dict-search" type="search" placeholder="Search a word… (e.g. battery, peel)" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+          </div>
+          <div class="flex gap-1.5 flex-wrap" id="dict-filters">
+            <button data-filter="all" class="dict-filter px-3 py-1.5 rounded-lg text-xs font-bold">All</button>
+            <button data-filter="white" class="dict-filter px-3 py-1.5 rounded-lg text-xs font-bold">White</button>
+            <button data-filter="green" class="dict-filter px-3 py-1.5 rounded-lg text-xs font-bold">Green</button>
+            <button data-filter="black" class="dict-filter px-3 py-1.5 rounded-lg text-xs font-bold">Black</button>
+            <button data-filter="special" class="dict-filter px-3 py-1.5 rounded-lg text-xs font-bold">Collection Point</button>
+          </div>
+        </div>
+        <div class="flex gap-1.5 flex-wrap items-center" id="dict-places">
+          <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mr-1">Where?</span>
+          <button data-place="all" class="dict-place px-3 py-1.5 rounded-lg text-xs font-bold">🌎 Everywhere</button>
+          <button data-place="classroom" class="dict-place px-3 py-1.5 rounded-lg text-xs font-bold">🏫 Classroom</button>
+          <button data-place="home" class="dict-place px-3 py-1.5 rounded-lg text-xs font-bold">🏠 Home</button>
+        </div>
+        <p class="text-xs text-slate-500" id="dict-count"></p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="dictionary-grid"></div>
+    </section>
+
+    <!-- ================= REAL-TIME IMPACT ================= -->
+    <section class="w-full glass-card rounded-3xl p-5 sm:p-6 mt-2 border border-slate-800">
+      <div class="flex items-start justify-between gap-3 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl"><i data-lucide="globe" class="w-6 h-6"></i></div>
+          <div>
+            <h3 class="font-heading font-bold text-lg text-white">Your Real-World Environmental Impact</h3>
+            <p class="text-xs text-slate-400">Updates live every time you sort an item correctly.</p>
+          </div>
+        </div>
+        <button onclick="resetProgress()" class="text-[11px] font-bold text-slate-500 hover:text-rose-400 flex items-center gap-1 shrink-0" title="Reset all progress">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Reset</span>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
+          <div class="text-2xl mb-1">☁️</div>
+          <div class="font-heading font-extrabold text-xl text-emerald-400" id="impact-co2">0 g</div>
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">CO₂ Prevented</div>
+        </div>
+        <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
+          <div class="text-2xl mb-1">💧</div>
+          <div class="font-heading font-extrabold text-xl text-cyan-400" id="impact-water">0 mL</div>
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Water Saved</div>
+        </div>
+        <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
+          <div class="text-2xl mb-1">⚡</div>
+          <div class="font-heading font-extrabold text-xl text-amber-400" id="impact-energy">0 Wh</div>
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Electricity Saved</div>
+        </div>
+        <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
+          <div class="text-2xl mb-1">♻️</div>
+          <div class="font-heading font-extrabold text-xl text-indigo-400" id="impact-items">0 Items</div>
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Total Sorted</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3 text-xs">
+        <div class="bg-slate-900/60 rounded-xl px-3 py-2 border border-slate-800 text-slate-300">📱 = <b id="eq-phone">0</b> phone charges</div>
+        <div class="bg-slate-900/60 rounded-xl px-3 py-2 border border-slate-800 text-slate-300">💡 = <b id="eq-led">0</b> hours of an LED bulb</div>
+        <div class="bg-slate-900/60 rounded-xl px-3 py-2 border border-slate-800 text-slate-300">🌳 = <b id="eq-tree">0</b> days of a tree absorbing CO₂</div>
+      </div>
+
+      <div class="mt-4">
+        <div class="flex justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5"><span>Items by bin</span><span id="bin-total">0</span></div>
+        <div class="flex h-3 rounded-full overflow-hidden bg-slate-800" id="bin-bar"></div>
+        <div class="flex flex-wrap gap-3 mt-2 text-[11px] text-slate-400" id="bin-legend"></div>
+      </div>
+
+      <p class="text-[10px] text-slate-500 mt-3">Values are educational estimates based on the average weight of each item and typical savings from recycling (vs. new material) or composting (vs. landfill).</p>
+    </section>
+  </main>
+
+  <footer class="text-center py-6 text-xs text-slate-500 border-t border-slate-800/60 mt-8">
+    <p>© EcoQuest Green Mission by Teacher Andrea Guerrero • Interactive English Learning & Environmental Education</p>
+  </footer>
+
+  <!-- FEEDBACK MODAL -->
+  <div id="modal-feedback" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md items-center justify-center p-4 hidden">
+    <div class="glass-card rounded-3xl p-6 sm:p-8 max-w-md w-full text-center border-2 flex flex-col items-center gap-4" id="modal-card">
+      <div id="modal-icon-box" class="w-20 h-20 rounded-full flex items-center justify-center text-4xl shadow-xl">🎉</div>
+      <div>
+        <h3 id="modal-title" class="font-heading text-2xl font-bold text-white mb-1">Excellent Job!</h3>
+        <p id="modal-subtitle" class="text-sm text-slate-300">You selected the correct bin!</p>
+      </div>
+      <div id="modal-impact" class="hidden w-full grid grid-cols-3 gap-2 text-xs"></div>
+      <div class="w-full bg-slate-900/90 p-4 rounded-2xl border border-slate-800 text-left text-xs space-y-2">
+        <div class="flex items-center gap-2 text-indigo-400 font-bold uppercase tracking-wider">
+          <i data-lucide="lightbulb" class="w-4 h-4"></i><span>Eco-English Tip</span>
+        </div>
+        <p id="modal-tip" class="text-slate-300 leading-relaxed"></p>
+      </div>
+      <button id="modal-next" onclick="closeModalNext()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30">
+        <span>Continue Challenge</span><i data-lucide="arrow-right" class="w-5 h-5"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- STUDENT PROFILE MODAL -->
+  <div id="modal-student" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md items-center justify-center p-4 hidden">
+    <form id="student-form" class="glass-card rounded-3xl p-6 sm:p-8 max-w-sm w-full border-2 border-emerald-500/30 flex flex-col gap-4" autocomplete="off">
+      <div class="text-center">
+        <div class="text-4xl mb-2">🧑‍🎓</div>
+        <h3 class="font-heading text-2xl font-bold text-white">Welcome, Eco Hero!</h3>
+        <p class="text-sm text-slate-300 mt-1">Write your name and grade so Teacher Andrea can see your progress.</p>
+      </div>
+      <label class="flex flex-col gap-1.5">
+        <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Name</span>
+        <input id="student-name-input" maxlength="60" required placeholder="e.g. Juan Pérez" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+      </label>
+      <label class="flex flex-col gap-1.5">
+        <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Grade</span>
+        <input id="student-grade-input" maxlength="20" required placeholder="e.g. 3-6, 3-7 or 3-8" inputmode="text" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+      </label>
+      <p id="student-form-error" class="hidden text-xs text-amber-300"></p>
+      <button type="submit" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold rounded-xl transition">Save & Play</button>
+      <button type="button" onclick="closeStudentModal()" class="text-xs text-slate-400 hover:text-white">Later</button>
+    </form>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="hidden fixed bottom-5 left-1/2 z-[60] px-4 py-3 rounded-2xl bg-slate-900 border border-emerald-500/40 text-sm font-bold text-emerald-300 shadow-2xl max-w-[90vw] text-center"></div>
+
+  <script>
+    /* ==========================================================================
+       1. BINS, MATERIALS & VOCABULARY DATABASE
+       ========================================================================== */
+    const BINS = {
+      white:   { key:'white',   label:'WHITE BIN',        short:'Recyclables',     examples:'Plastic, glass, paper, metal', icon:'♻️', glow:'bin-white-glow',
+                 guide:'Clean & dry plastic, glass, paper, cardboard and metal.', title:'text-slate-100',
+                 btn:'border-slate-300/40 hover:border-slate-100', chip:'bg-slate-100 text-slate-900', color:'#e2e8f0' },
+      green:   { key:'green',   label:'GREEN BIN',        short:'Organics',        examples:'Food scraps, peels, plants', icon:'🍏', glow:'bin-green-glow',
+                 guide:'Food scraps, fruit & vegetable peels and garden waste for compost.', title:'text-emerald-400',
+                 btn:'border-emerald-500/40 hover:border-emerald-400', chip:'bg-emerald-500 text-slate-950', color:'#22c55e' },
+      black:   { key:'black',   label:'BLACK BIN',        short:'Non-Recyclables', examples:'Soiled paper, sanitary waste', icon:'🗑️', glow:'bin-black-glow',
+                 guide:'Soiled paper, sanitary waste, metallized wrappers and dirty packaging.', title:'text-slate-300',
+                 btn:'border-slate-600 hover:border-slate-400', chip:'bg-slate-700 text-slate-100 border border-slate-500', color:'#64748b' },
+      special: { key:'special', label:'COLLECTION POINT', short:'Hazardous',       examples:'Batteries, e-waste, medicine', icon:'⚠️', glow:'bin-special-glow',
+                 guide:'Never in household bins! Take it to a post-consumer drop-off point (punto posconsumo).', title:'text-rose-400',
+                 btn:'border-rose-500/40 hover:border-rose-400', chip:'bg-rose-500 text-white', color:'#f43f5e' }
+    };
+    const BIN_ORDER = ['white', 'green', 'black', 'special'];
+
+    // Estimated savings per kg of material (recycled vs. virgin, or composted vs. landfilled)
+    const MATERIALS = {
+      aluminum:  { co2: 9.0, water: 10,  energy: 14.0 },
+      steel:     { co2: 1.5, water: 5,   energy: 1.8 },
+      pet:       { co2: 1.5, water: 4,   energy: 5.8 },
+      plastic:   { co2: 1.1, water: 3,   energy: 4.5 },
+      glass:     { co2: 0.3, water: 1,   energy: 0.3 },
+      paper:     { co2: 1.0, water: 26,  energy: 4.0 },
+      composite: { co2: 0.7, water: 15,  energy: 2.5 },
+      organic:   { co2: 0.5, water: 0.5, energy: 0.05 },
+      residual:  { co2: 0.3, water: 1,   energy: 0.1 },
+      hazardous: { co2: 2.0, water: 50,  energy: 3.0 }
+    };
+
+    /* imagenet = MobileNet class names that map to the item, coco = COCO-SSD detector labels */
+    const WASTE_ITEMS = [
+      // ---------------- WHITE: RECYCLABLES ----------------
+      { id:'plastic-bottle', word:'Plastic Bottle', phonetic:'/ˈplæstɪk ˈbɑːtəl/', emoji:'🧴', bin:'white', material:'pet', kg:0.025,
+        imagenet:['water bottle','pop bottle','soda bottle','water jug'], coco:['bottle'],
+        definition:'A light plastic container used for water, soda or juice.',
+        sentence:'Empty, rinse and crush plastic bottles before putting them in the white bin.' },
+      { id:'glass-bottle', word:'Glass Bottle', phonetic:'/ɡlæs ˈbɑːtəl/', emoji:'🍾', bin:'white', material:'glass', kg:0.35,
+        imagenet:['beer bottle','wine bottle','whiskey jug','red wine'],
+        definition:'A hard, transparent bottle made of glass.',
+        sentence:'Glass bottles can be recycled again and again without losing quality.' },
+      { id:'glass-jar', word:'Glass Jar', phonetic:'/ɡlæs dʒɑːr/', emoji:'🫙', bin:'white', material:'glass', kg:0.2,
+        imagenet:['vase'],
+        definition:'A glass container used to store jam, sauces or pickles.',
+        sentence:'Rinse the glass jar with water before sorting it into the white bin.' },
+      { id:'aluminum-can', word:'Aluminum Can', phonetic:'/əˈluːmənəm kæn/', emoji:'🥫', bin:'white', material:'aluminum', kg:0.015,
+        imagenet:['beer can','soda can','tin can','milk can'],
+        definition:'A lightweight metal container for soda or other drinks.',
+        sentence:'Recycling aluminum cans saves about 95% of the energy needed to make new ones.' },
+      { id:'food-tin', word:'Food Tin', phonetic:'/fuːd tɪn/', emoji:'🥫', bin:'white', material:'steel', kg:0.06,
+        imagenet:['can opener'],
+        definition:'A steel can used for tuna, beans or canned vegetables.',
+        sentence:'Rinse the food tin and put it in the white bin; steel is 100% recyclable.' },
+      { id:'cardboard-box', word:'Cardboard Box', phonetic:'/ˈkɑːrdbɔːrd bɑːks/', emoji:'📦', bin:'white', material:'paper', kg:0.3,
+        imagenet:['carton','crate'],
+        definition:'A box made of thick paper used to store or ship products.',
+        sentence:'Flatten cardboard boxes to save space in the white recycling bin.' },
+      { id:'newspaper', word:'Newspaper', phonetic:'/ˈnuːzpeɪpər/', emoji:'📰', bin:'white', material:'paper', kg:0.2,
+        imagenet:['crossword puzzle','crossword','menu'],
+        definition:'Printed paper with news, articles and advertisements.',
+        sentence:'Dry newspapers belong in the white bin for recycling.' },
+      { id:'printer-paper', word:'Printer Paper', phonetic:'/ˈprɪntər ˈpeɪpər/', emoji:'📄', bin:'white', material:'paper', kg:0.05,
+        imagenet:['binder','ring-binder','ring binder'],
+        definition:'White sheets of paper used for printing or writing.',
+        sentence:'Use both sides of printer paper, then recycle it in the white bin.' },
+      { id:'envelope', word:'Envelope', phonetic:'/ˈenvəloʊp/', emoji:'✉️', bin:'white', material:'paper', kg:0.01,
+        imagenet:['envelope'],
+        definition:'A flat paper cover used to send letters.',
+        sentence:'Paper envelopes can be recycled with other clean paper.' },
+      { id:'old-book', word:'Old Book', phonetic:'/oʊld bʊk/', emoji:'📚', bin:'white', material:'paper', kg:0.4,
+        imagenet:['book jacket','dust cover','dust jacket','comic book'], coco:['book'],
+        definition:'A used book with paper pages.',
+        sentence:'Donate old books first; if they are damaged, recycle them in the white bin.' },
+      { id:'magazine', word:'Magazine', phonetic:'/ˈmæɡəziːn/', emoji:'📖', bin:'white', material:'paper', kg:0.15,
+        imagenet:[],
+        definition:'A thin publication with colorful pages and photos.',
+        sentence:'Clean and dry magazines go in the white bin.' },
+      { id:'juice-carton', word:'Juice Carton', phonetic:'/dʒuːs ˈkɑːrtən/', emoji:'🧃', bin:'white', material:'composite', kg:0.03,
+        imagenet:[],
+        definition:'A multilayer box (like Tetra Pak) for juice or milk.',
+        sentence:'Empty and flatten juice cartons before putting them in the white bin.' },
+      { id:'egg-carton', word:'Egg Carton', phonetic:'/eɡ ˈkɑːrtən/', emoji:'🗃️', bin:'white', material:'paper', kg:0.07,
+        imagenet:[],
+        definition:'A molded paper tray that protects eggs.',
+        sentence:'A clean egg carton is recyclable paper for the white bin.' },
+      { id:'plastic-bag', word:'Plastic Bag', phonetic:'/ˈplæstɪk bæɡ/', emoji:'🛍️', bin:'white', material:'plastic', kg:0.01,
+        imagenet:['plastic bag'],
+        definition:'A thin, flexible bag made of plastic film.',
+        sentence:'Reuse plastic bags; when they are clean and dry, recycle them in the white bin.' },
+      { id:'plastic-container', word:'Plastic Container', phonetic:'/ˈplæstɪk kənˈteɪnər/', emoji:'🍱', bin:'white', material:'plastic', kg:0.03,
+        imagenet:[],
+        definition:'A rigid plastic box or cup for food, like a yogurt cup.',
+        sentence:'Wash the plastic container so food does not contaminate the recyclables.' },
+      { id:'shampoo-bottle', word:'Shampoo Bottle', phonetic:'/ʃæmˈpuː ˈbɑːtəl/', emoji:'🧼', bin:'white', material:'plastic', kg:0.05,
+        imagenet:['lotion','sunscreen','sunblock','sun blocker','hair spray','soap dispenser'],
+        definition:'A plastic bottle for shampoo, soap or lotion.',
+        sentence:'Rinse the shampoo bottle and put it in the white bin.' },
+      { id:'notebook', word:'Notebook', phonetic:'/ˈnoʊtbʊk/', emoji:'📓', bin:'white', material:'paper', kg:0.25,
+        imagenet:[],
+        definition:'A school book of blank or lined paper for writing.',
+        sentence:'Remove the metal spiral, then recycle the notebook paper in the white bin.' },
+      { id:'bottle-cap', word:'Bottle Cap', phonetic:'/ˈbɑːtəl kæp/', emoji:'🔘', bin:'white', material:'plastic', kg:0.002,
+        imagenet:['bottlecap'],
+        definition:'The small plastic or metal lid that closes a bottle.',
+        sentence:'Collect bottle caps in a jar and put them in the white bin.' },
+      { id:'aluminum-foil', word:'Aluminum Foil', phonetic:'/əˈluːmənəm fɔɪl/', emoji:'🪙', bin:'white', material:'aluminum', kg:0.01,
+        imagenet:[],
+        definition:'A very thin, shiny sheet of metal used to wrap food.',
+        sentence:'Clean aluminum foil can be rolled into a ball and recycled in the white bin.' },
+      { id:'milk-bag', word:'Milk Bag', phonetic:'/mɪlk bæɡ/', emoji:'🥛', bin:'white', material:'plastic', kg:0.008,
+        imagenet:[],
+        definition:'A plastic bag of milk, very common in Colombian stores.',
+        sentence:'Rinse the milk bag well so it does not smell, then put it in the white bin.' },
+
+      // ---------------- GREEN: ORGANICS ----------------
+      { id:'apple-core', word:'Apple Core', phonetic:'/ˈæpəl kɔːr/', emoji:'🍎', bin:'green', material:'organic', kg:0.08,
+        imagenet:['granny smith','custard apple'], coco:['apple'],
+        definition:'The center part of an apple left after eating.',
+        sentence:'Apple cores are organic waste for the green bin.' },
+      { id:'banana-peel', word:'Banana Peel', phonetic:'/bəˈnænə piːl/', emoji:'🍌', bin:'green', material:'organic', kg:0.05,
+        imagenet:['banana'], coco:['banana'],
+        definition:'The yellow outer skin of a banana.',
+        sentence:'Banana peels turn into rich compost in the green bin.' },
+      { id:'orange-peel', word:'Orange Peel', phonetic:'/ˈɔːrɪndʒ piːl/', emoji:'🍊', bin:'green', material:'organic', kg:0.08,
+        imagenet:['orange','lemon'], coco:['orange'],
+        definition:'The outer skin of an orange, lemon or lime.',
+        sentence:'Citrus peels are organic, so they go in the green bin.' },
+      { id:'pineapple-skin', word:'Pineapple Skin', phonetic:'/ˈpaɪnæpəl skɪn/', emoji:'🍍', bin:'green', material:'organic', kg:0.4,
+        imagenet:['pineapple','ananas'],
+        definition:'The rough, spiky skin and crown of a pineapple.',
+        sentence:'Pineapple skins decompose in the green organic bin.' },
+      { id:'mango-peel', word:'Mango Peel', phonetic:'/ˈmæŋɡoʊ piːl/', emoji:'🥭', bin:'green', material:'organic', kg:0.08,
+        imagenet:[],
+        definition:'The skin and seed left after eating a mango.',
+        sentence:'Mango peels and seeds are organic waste for the green bin.' },
+      { id:'fruit-scraps', word:'Fruit Scraps', phonetic:'/fruːt skræps/', emoji:'🍓', bin:'green', material:'organic', kg:0.1,
+        imagenet:['strawberry','fig','pomegranate','jackfruit','jak','jack'],
+        definition:'Small leftover pieces of fruit.',
+        sentence:'Fruit scraps are perfect for compost in the green bin.' },
+      { id:'avocado-skin', word:'Avocado Skin', phonetic:'/ˌævəˈkɑːdoʊ skɪn/', emoji:'🥑', bin:'green', material:'organic', kg:0.05,
+        imagenet:['guacamole'],
+        definition:'The dark green skin and big seed of an avocado.',
+        sentence:'Avocado skins and seeds go in the green bin.' },
+      { id:'vegetable-scraps', word:'Vegetable Scraps', phonetic:'/ˈvedʒtəbəl skræps/', emoji:'🥦', bin:'green', material:'organic', kg:0.15,
+        imagenet:['broccoli','cauliflower','head cabbage','cucumber','cuke','zucchini','courgette','bell pepper','artichoke','globe artichoke','cardoon','spaghetti squash','acorn squash','butternut squash'],
+        coco:['broccoli'],
+        definition:'Leftover pieces of vegetables from cooking.',
+        sentence:'Vegetable scraps can be turned into organic fertilizer.' },
+      { id:'carrot-peels', word:'Carrot Peels', phonetic:'/ˈkærət piːlz/', emoji:'🥕', bin:'green', material:'organic', kg:0.05,
+        imagenet:[], coco:['carrot'],
+        definition:'Thin strips of skin removed from carrots.',
+        sentence:'Put carrot peels in the green bin, not the black bin.' },
+      { id:'corn-cob', word:'Corn Cob', phonetic:'/kɔːrn kɑːb/', emoji:'🌽', bin:'green', material:'organic', kg:0.1,
+        imagenet:['corn','ear','spike','capitulum'],
+        definition:'The hard center of an ear of corn after eating the kernels.',
+        sentence:'Corn cobs and husks are organic waste for the green bin.' },
+      { id:'mushroom-stems', word:'Mushroom Stems', phonetic:'/ˈmʌʃruːm stemz/', emoji:'🍄', bin:'green', material:'organic', kg:0.03,
+        imagenet:['mushroom','agaric','bolete'],
+        definition:'The leftover stems and pieces of mushrooms.',
+        sentence:'Mushroom stems decompose quickly in the green bin.' },
+      { id:'bread-crust', word:'Bread Crust', phonetic:'/bred krʌst/', emoji:'🍞', bin:'green', material:'organic', kg:0.05,
+        imagenet:['french loaf','bagel','beigel','pretzel'], coco:['sandwich','donut'],
+        definition:'The hard outer part of bread, or leftover bread.',
+        sentence:'Old bread and crusts go directly into the green organic bin.' },
+      { id:'food-leftovers', word:'Food Leftovers', phonetic:'/fuːd ˈleftoʊvərz/', emoji:'🍝', bin:'green', material:'organic', kg:0.2,
+        imagenet:['carbonara','potpie','burrito','meat loaf','meatloaf','mashed potato','cheeseburger','hotdog','hot dog','red hot','pizza','pizza pie','trifle','consomme'],
+        coco:['pizza','hot dog','cake'],
+        definition:'Food that remains on the plate after a meal.',
+        sentence:'Scrape food leftovers into the green bin before washing the plate.' },
+      { id:'eggshells', word:'Eggshells', phonetic:'/ˈeɡʃelz/', emoji:'🥚', bin:'green', material:'organic', kg:0.02,
+        imagenet:[],
+        definition:'The hard outer covering of eggs.',
+        sentence:'Crushed eggshells add calcium to compost in the green bin.' },
+      { id:'coffee-grounds', word:'Coffee Grounds', phonetic:'/ˈkɔːfi ɡraʊndz/', emoji:'☕', bin:'green', material:'organic', kg:0.1,
+        imagenet:[],
+        definition:'The wet, used coffee powder left after brewing.',
+        sentence:'Colombian coffee grounds make excellent compost in the green bin.' },
+      { id:'dry-leaves', word:'Dry Leaves', phonetic:'/draɪ liːvz/', emoji:'🍂', bin:'green', material:'organic', kg:0.1,
+        imagenet:['hay'],
+        definition:'Leaves that have fallen from trees and dried.',
+        sentence:'Dry leaves are garden waste for the green bin.' },
+      { id:'plant-trimmings', word:'Plant Trimmings', phonetic:'/plænt ˈtrɪmɪŋz/', emoji:'🌿', bin:'green', material:'organic', kg:0.1,
+        imagenet:['pot','flowerpot'], coco:['potted plant'],
+        definition:'Small branches and leaves cut from plants.',
+        sentence:'Plant trimmings from the garden belong in the green bin.' },
+      { id:'wilted-flowers', word:'Wilted Flowers', phonetic:'/ˈwɪltɪd ˈflaʊərz/', emoji:'🥀', bin:'green', material:'organic', kg:0.05,
+        imagenet:['daisy'],
+        definition:'Old flowers that are dry or dead.',
+        sentence:'Wilted flowers go in the green bin without the plastic wrap.' },
+
+      // ---------------- BLACK: NON-RECYCLABLES ----------------
+      { id:'used-napkin', word:'Used Napkin', phonetic:'/juːzd ˈnæpkɪn/', emoji:'🧻', bin:'black', material:'residual', kg:0.01,
+        imagenet:['paper towel','toilet tissue','toilet paper','bathroom tissue','handkerchief','hankie','hanky','hankey'],
+        definition:'A paper napkin, towel or tissue that is dirty or greasy.',
+        sentence:'Dirty or greasy napkins cannot be recycled; put them in the black bin.' },
+      { id:'diaper', word:'Diaper', phonetic:'/ˈdaɪpər/', emoji:'👶', bin:'black', material:'residual', kg:0.15,
+        imagenet:['diaper','nappy','napkin'],
+        definition:'A disposable absorbent garment for babies.',
+        sentence:'Used diapers are sanitary waste for the black bin.' },
+      { id:'chip-bag', word:'Chip Bag', phonetic:'/tʃɪp bæɡ/', emoji:'🍟', bin:'black', material:'residual', kg:0.01,
+        imagenet:['packet'],
+        definition:'A shiny metallized plastic bag used for snacks.',
+        sentence:'Snack bags with a shiny metallic inside belong in the black bin.' },
+      { id:'candy-wrapper', word:'Candy Wrapper', phonetic:'/ˈkændi ˈræpər/', emoji:'🍬', bin:'black', material:'residual', kg:0.005,
+        imagenet:[],
+        definition:'The small plastic or foil paper around a candy.',
+        sentence:'Candy wrappers are too small and mixed to recycle; use the black bin.' },
+      { id:'disposable-cup', word:'Disposable Cup', phonetic:'/dɪˈspoʊzəbəl kʌp/', emoji:'🥤', bin:'black', material:'residual', kg:0.012,
+        imagenet:['cup','coffee mug','espresso','eggnog'], coco:['cup'],
+        definition:'A used paper or plastic cup lined with plastic for hot drinks.',
+        sentence:'Used coffee cups have a plastic lining, so they go in the black bin. Bring a reusable mug!' },
+      { id:'styrofoam-tray', word:'Styrofoam Tray', phonetic:'/ˈstaɪrəfoʊm treɪ/', emoji:'🥡', bin:'black', material:'residual', kg:0.01,
+        imagenet:['tray'],
+        definition:'A white foam tray or box that held food.',
+        sentence:'Dirty Styrofoam trays go in the black bin.' },
+      { id:'greasy-pizza-box', word:'Greasy Pizza Box', phonetic:'/ˈɡriːsi ˈpiːtsə bɑːks/', emoji:'🍕', bin:'black', material:'residual', kg:0.2,
+        imagenet:[],
+        definition:'A cardboard box stained with oil and cheese.',
+        sentence:'Grease ruins paper recycling, so a greasy pizza box goes in the black bin.' },
+      { id:'toothbrush', word:'Toothbrush', phonetic:'/ˈtuːθbrʌʃ/', emoji:'🪥', bin:'black', material:'residual', kg:0.02,
+        imagenet:['toothbrush'], coco:['toothbrush'],
+        definition:'A small brush for cleaning teeth.',
+        sentence:'Old plastic toothbrushes go in the black bin.' },
+      { id:'face-mask', word:'Face Mask', phonetic:'/feɪs mæsk/', emoji:'😷', bin:'black', material:'residual', kg:0.005,
+        imagenet:['mask','oxygen mask'],
+        definition:'A disposable mask that covers the nose and mouth.',
+        sentence:'Cut the ear loops of a used face mask and put it in the black bin.' },
+      { id:'adhesive-bandage', word:'Adhesive Bandage', phonetic:'/ədˈhiːsɪv ˈbændɪdʒ/', emoji:'🩹', bin:'black', material:'residual', kg:0.002,
+        imagenet:['band aid'],
+        definition:'A small sticky strip used to cover a cut.',
+        sentence:'Used adhesive bandages are sanitary waste for the black bin.' },
+      { id:'receipt', word:'Receipt', phonetic:'/rɪˈsiːt/', emoji:'🧾', bin:'black', material:'residual', kg:0.002,
+        imagenet:[],
+        definition:'A shiny thermal paper slip you get after buying something.',
+        sentence:'Thermal paper receipts are not recyclable; ask for a digital receipt.' },
+      { id:'plastic-straw', word:'Plastic Straw', phonetic:'/ˈplæstɪk strɔː/', emoji:'🧋', bin:'black', material:'residual', kg:0.001,
+        imagenet:[],
+        definition:'A thin plastic tube used to drink.',
+        sentence:'Plastic straws are too small to recycle; say "no straw, please".' },
+      { id:'broken-plate', word:'Broken Plate', phonetic:'/ˈbroʊkən pleɪt/', emoji:'🍽️', bin:'black', material:'residual', kg:0.3,
+        imagenet:[],
+        definition:'Pieces of a ceramic plate or cup.',
+        sentence:'Wrap broken ceramics in paper and put them in the black bin.' },
+      { id:'cigarette-butt', word:'Cigarette Butt', phonetic:'/ˈsɪɡəret bʌt/', emoji:'🚬', bin:'black', material:'residual', kg:0.001,
+        imagenet:[],
+        definition:'The end of a cigarette that is left after smoking.',
+        sentence:'Cigarette butts are toxic; never throw them on the ground, use the black bin.' },
+      { id:'candle-stub', word:'Candle Stub', phonetic:'/ˈkændəl stʌb/', emoji:'🕯️', bin:'black', material:'residual', kg:0.05,
+        imagenet:['candle','taper','wax light'],
+        definition:'The small piece of wax left from a burned candle.',
+        sentence:'Candle wax is not recyclable, so it goes in the black bin.' },
+      { id:'kitchen-sponge', word:'Kitchen Sponge', phonetic:'/ˈkɪtʃən spʌndʒ/', emoji:'🧽', bin:'black', material:'residual', kg:0.01,
+        imagenet:[],
+        definition:'A soft sponge used to wash dishes.',
+        sentence:'Old kitchen sponges go in the black bin.' },
+      { id:'pen', word:'Pen', phonetic:'/pen/', emoji:'🖊️', bin:'black', material:'residual', kg:0.01,
+        imagenet:['ballpoint','ballpoint pen','ballpen','biro','fountain pen'],
+        definition:'A plastic tool with ink used for writing. Pencils go here too.',
+        sentence:'Empty pens and pencil stubs are not recyclable, so they go in the black bin.' },
+      { id:'plastic-cutlery', word:'Plastic Cutlery', phonetic:'/ˈplæstɪk ˈkʌtləri/', emoji:'🍴', bin:'black', material:'residual', kg:0.004,
+        imagenet:['spatula','wooden spoon','ladle'],
+        definition:'Disposable plastic forks, spoons and knives.',
+        sentence:'Dirty plastic cutlery goes in the black bin. Carry your own metal spoon!' },
+
+      // ---------------- SPECIAL: HAZARDOUS / COLLECTION POINT ----------------
+      { id:'battery', word:'Battery', phonetic:'/ˈbætəri/', emoji:'🔋', bin:'special', material:'hazardous', kg:0.025,
+        imagenet:[],
+        definition:'A small device that stores electricity, like AA or AAA batteries.',
+        sentence:'Batteries contain toxic metals; take them to a battery collection point.' },
+      { id:'old-phone', word:'Old Cell Phone', phonetic:'/oʊld sel foʊn/', emoji:'📱', bin:'special', material:'hazardous', kg:0.15,
+        imagenet:['cellular telephone','cellular phone','cellphone','cell','mobile phone','ipod','hand-held computer','hand-held microcomputer'],
+        coco:['cell phone'],
+        definition:'A mobile phone that no longer works or is not used.',
+        sentence:'Old cell phones contain valuable metals; recycle them at an e-waste collection point.' },
+      { id:'electronic-waste', word:'Electronic Waste', phonetic:'/ɪˌlekˈtrɑːnɪk weɪst/', emoji:'💻', bin:'special', material:'hazardous', kg:1.5,
+        imagenet:['laptop','laptop computer','notebook','notebook computer','desktop computer','monitor','screen','crt screen','television','television system','computer keyboard','keypad','mouse','computer mouse','remote control','remote','modem','loudspeaker','speaker unit','loudspeaker system','speaker system'],
+        coco:['laptop','keyboard','mouse','remote','tv'],
+        definition:'Old computers, keyboards, remotes and other electronic devices.',
+        sentence:'Electronic waste must go to a special collection point, never to the black bin.' },
+      { id:'charger-cable', word:'Charger Cable', phonetic:'/ˈtʃɑːrdʒər ˈkeɪbəl/', emoji:'🔌', bin:'special', material:'hazardous', kg:0.08,
+        imagenet:[],
+        definition:'A wire used to charge phones or other devices.',
+        sentence:'Broken charger cables are e-waste for the collection point.' },
+      { id:'light-bulb', word:'Light Bulb', phonetic:'/laɪt bʌlb/', emoji:'💡', bin:'special', material:'hazardous', kg:0.05,
+        imagenet:[],
+        definition:'A fluorescent or LED lamp that produces light.',
+        sentence:'Fluorescent light bulbs contain mercury; take them to a collection point.' },
+      { id:'expired-medicine', word:'Expired Medicine', phonetic:'/ɪkˈspaɪərd ˈmedəsən/', emoji:'💊', bin:'special', material:'hazardous', kg:0.05,
+        imagenet:['pill bottle'],
+        definition:'Pills or syrups that are past their expiration date.',
+        sentence:'Return expired medicine to a pharmacy collection point.' },
+      { id:'syringe', word:'Syringe', phonetic:'/səˈrɪndʒ/', emoji:'💉', bin:'special', material:'hazardous', kg:0.01,
+        imagenet:['syringe'],
+        definition:'A medical tool with a needle used for injections.',
+        sentence:'Put used syringes in a hard container and take them to a pharmacy or health center.' }
+    ];
+
+
+    /* ---------- v4 expansion: objects children find in the CLASSROOM and at HOME ---------- */
+    const NEW_ITEMS = [
+      // CLASSROOM · white
+      { id:'poster-board', word:'Poster Board', phonetic:'/ˈpoʊstər bɔːrd/', emoji:'🪧', bin:'white', material:'paper', kg:0.1, place:'classroom',
+        clip:['a sheet of colored poster board','a large piece of colored cardboard paper'],
+        definition:'A big, thick sheet of colored paper used for school posters.', sentence:'Clean poster board can be recycled in the white bin.' },
+      { id:'cardboard-folder', word:'Cardboard Folder', phonetic:'/ˈkɑːrdbɔːrd ˈfoʊldər/', emoji:'📁', bin:'white', material:'paper', kg:0.08, place:'classroom',
+        clip:['a cardboard file folder','a paper folder for documents'],
+        definition:'A folded piece of cardboard used to keep papers together.', sentence:'Remove the metal clip and put the cardboard folder in the white bin.' },
+      { id:'plastic-folder', word:'Plastic Folder', phonetic:'/ˈplæstɪk ˈfoʊldər/', emoji:'📂', bin:'white', material:'plastic', kg:0.05, place:'classroom',
+        clip:['a transparent plastic document folder','a colorful plastic folder with a snap button'],
+        definition:'A plastic cover or envelope to protect school papers.', sentence:'An old plastic folder is recyclable plastic for the white bin.' },
+      { id:'paper-clip', word:'Paper Clip', phonetic:'/ˈpeɪpər klɪp/', emoji:'📎', bin:'white', material:'steel', kg:0.001, place:'classroom', imagenet:['paper clip'],
+        clip:['metal paper clips','a paper clip'],
+        definition:'A small bent wire that holds sheets of paper together.', sentence:'Metal paper clips are recyclable; collect them and put them in the white bin.' },
+      { id:'cardboard-tube', word:'Cardboard Tube', phonetic:'/ˈkɑːrdbɔːrd tuːb/', emoji:'📜', bin:'white', material:'paper', kg:0.01, place:'both',
+        clip:['an empty toilet paper roll tube','a cardboard tube'],
+        definition:'The empty cardboard roll inside toilet paper or paper towels.', sentence:'The empty cardboard tube goes in the white bin, or use it for a craft!' },
+      // CLASSROOM · green
+      { id:'lunchbox-leftovers', word:'Lunchbox Leftovers', phonetic:'/ˈlʌntʃbɑːks ˈleftoʊvərz/', emoji:'🥪', bin:'green', material:'organic', kg:0.1, place:'classroom',
+        clip:['leftover food in a lunchbox','a half-eaten sandwich'],
+        definition:'Food from your school snack that you did not finish.', sentence:'Put lunchbox leftovers in the green bin, not in your desk!' },
+      { id:'tangerine-peel', word:'Tangerine Peel', phonetic:'/ˌtændʒəˈriːn piːl/', emoji:'🍊', bin:'green', material:'organic', kg:0.03, place:'both',
+        clip:['tangerine peels','a peeled mandarin orange'],
+        definition:'The soft orange skin of a tangerine (mandarina).', sentence:'Tangerine peels are organic waste for the green bin.' },
+      { id:'fruit-pit', word:'Fruit Pit', phonetic:'/fruːt pɪt/', emoji:'🍑', bin:'green', material:'organic', kg:0.02, place:'both',
+        clip:['a peach pit','a big fruit seed','a fruit stone'],
+        definition:'The hard seed in the middle of fruits like peaches or plums.', sentence:'Fruit pits and seeds go in the green bin.' },
+      // CLASSROOM · black
+      { id:'eraser', word:'Eraser', phonetic:'/ɪˈreɪsər/', emoji:'⬜', bin:'black', material:'residual', kg:0.01, place:'classroom', imagenet:['rubber eraser','rubber','pencil eraser'],
+        clip:['a rubber eraser','a small white school eraser'],
+        definition:'A small rubber block used to remove pencil marks.', sentence:'A worn-out eraser cannot be recycled, so it goes in the black bin.' },
+      { id:'marker', word:'Marker', phonetic:'/ˈmɑːrkər/', emoji:'✒️', bin:'black', material:'residual', kg:0.015, place:'classroom',
+        clip:['a marker pen','a whiteboard marker','a highlighter'],
+        definition:'A thick pen with colored ink for the whiteboard or posters.', sentence:'Dry markers go in the black bin. Some stores collect them for recycling.' },
+      { id:'crayon', word:'Crayon', phonetic:'/ˈkreɪɑːn/', emoji:'🖍️', bin:'black', material:'residual', kg:0.005, place:'classroom',
+        clip:['wax crayons','a broken crayon'],
+        definition:'A colored wax stick used for drawing.', sentence:'Tiny broken crayons go in the black bin.' },
+      { id:'modeling-clay', word:'Modeling Clay', phonetic:'/ˈmɑːdəlɪŋ kleɪ/', emoji:'🟠', bin:'black', material:'residual', kg:0.02, place:'classroom',
+        clip:['modeling clay','colorful plasticine'],
+        definition:'Soft colored clay (plastilina) used to make shapes.', sentence:'Old, dirty modeling clay goes in the black bin.' },
+      { id:'adhesive-tape', word:'Adhesive Tape', phonetic:'/ədˈhiːsɪv teɪp/', emoji:'➰', bin:'black', material:'residual', kg:0.01, place:'classroom',
+        clip:['a roll of adhesive tape','a piece of clear sticky tape'],
+        definition:'A sticky plastic strip used to join things.', sentence:'Used adhesive tape is sticky, so it goes in the black bin.' },
+      { id:'glue-stick', word:'Glue Stick', phonetic:'/ɡluː stɪk/', emoji:'🟣', bin:'black', material:'residual', kg:0.01, place:'classroom',
+        clip:['a glue stick','an empty glue stick tube'],
+        definition:'A small tube of solid glue for paper crafts.', sentence:'An empty glue stick has glue inside, so it goes in the black bin.' },
+      { id:'chewing-gum', word:'Chewing Gum', phonetic:'/ˈtʃuːɪŋ ɡʌm/', emoji:'🫧', bin:'black', material:'residual', kg:0.002, place:'both',
+        clip:['a piece of chewing gum','chewed gum in a wrapper'],
+        definition:'A sweet you chew but do not swallow.', sentence:'Wrap chewing gum in paper and put it in the black bin, never under the desk!' },
+      { id:'cookie-wrapper', word:'Cookie Wrapper', phonetic:'/ˈkʊki ˈræpər/', emoji:'🍪', bin:'black', material:'residual', kg:0.005, place:'both',
+        clip:['an empty cookie package','a crumpled biscuit wrapper'],
+        definition:'The shiny plastic package of cookies or crackers.', sentence:'Cookie wrappers are mixed materials, so they go in the black bin.' },
+      { id:'glitter-paper', word:'Glitter Paper', phonetic:'/ˈɡlɪtər ˈpeɪpər/', emoji:'✨', bin:'black', material:'residual', kg:0.01, place:'classroom',
+        clip:['paper covered with glitter','a glitter craft sheet'],
+        definition:'Paper decorated with tiny shiny pieces (escarcha).', sentence:'Glitter is a microplastic; paper with glitter goes in the black bin.' },
+      { id:'stickers', word:'Stickers', phonetic:'/ˈstɪkərz/', emoji:'🏷️', bin:'black', material:'residual', kg:0.005, place:'classroom',
+        clip:['a sheet of stickers','sticker backing paper'],
+        definition:'Small pictures with glue on the back.', sentence:'Stickers and their shiny backing paper go in the black bin.' },
+      { id:'colored-pencil', word:'Colored Pencil', phonetic:'/ˈkʌlərd ˈpensəl/', emoji:'✏️', bin:'black', material:'residual', kg:0.005, place:'classroom',
+        clip:['short worn-out colored pencils','colored pencils'],
+        definition:'A pencil with colored lead for drawing.', sentence:'Use colored pencils until they are very short, then put them in the black bin.' },
+      { id:'balloon', word:'Balloon', phonetic:'/bəˈluːn/', emoji:'🎈', bin:'black', material:'residual', kg:0.003, place:'both', imagenet:['balloon'],
+        clip:['a deflated balloon','a popped balloon'],
+        definition:'A rubber bag you fill with air for parties.', sentence:'Popped balloons go in the black bin; they are dangerous for animals.' },
+      // CLASSROOM · special
+      { id:'usb-drive', word:'USB Flash Drive', phonetic:'/ˌjuː es ˈbiː flæʃ draɪv/', emoji:'💾', bin:'special', material:'hazardous', kg:0.01, place:'classroom',
+        clip:['a USB flash drive','a memory stick'],
+        definition:'A small device used to save and carry computer files.', sentence:'Broken USB flash drives are e-waste for the collection point.' },
+      { id:'calculator', word:'Calculator', phonetic:'/ˈkælkjəleɪtər/', emoji:'🧮', bin:'special', material:'hazardous', kg:0.1, place:'classroom', imagenet:['hand-held calculator','pocket calculator'],
+        clip:['a calculator','a scientific calculator'],
+        definition:'An electronic device for doing math. It has a battery inside.', sentence:'A broken calculator is e-waste; take it to a collection point.' },
+      { id:'headphones', word:'Headphones', phonetic:'/ˈhedfoʊnz/', emoji:'🎧', bin:'special', material:'hazardous', kg:0.1, place:'both',
+        clip:['headphones','earphones','wired earbuds'],
+        definition:'A device you wear on your ears to listen to music.', sentence:'Old headphones are e-waste for the collection point.' },
+      { id:'ink-cartridge', word:'Ink Cartridge', phonetic:'/ɪŋk ˈkɑːrtrɪdʒ/', emoji:'🖨️', bin:'special', material:'hazardous', kg:0.05, place:'both',
+        clip:['a printer ink cartridge','a toner cartridge'],
+        definition:'The small box of ink inside a printer.', sentence:'Empty ink cartridges must go back to a collection point.' },
+
+      // HOME · white
+      { id:'cereal-box', word:'Cereal Box', phonetic:'/ˈsɪriəl bɑːks/', emoji:'🥣', bin:'white', material:'paper', kg:0.06, place:'home',
+        clip:['an empty cereal box','a thin cardboard food box'],
+        definition:'A thin cardboard box for breakfast cereal.', sentence:'Flatten the empty cereal box and put it in the white bin.' },
+      { id:'paper-bag', word:'Paper Bag', phonetic:'/ˈpeɪpər bæɡ/', emoji:'👜', bin:'white', material:'paper', kg:0.03, place:'home',
+        clip:['a brown paper bag','a paper shopping bag'],
+        definition:'A bag made of brown or white paper.', sentence:'Clean paper bags are recyclable in the white bin.' },
+      { id:'detergent-bottle', word:'Detergent Bottle', phonetic:'/dɪˈtɜːrdʒənt ˈbɑːtəl/', emoji:'🧺', bin:'white', material:'plastic', kg:0.08, place:'home',
+        clip:['a plastic laundry detergent bottle','a bottle of dish soap'],
+        definition:'A strong plastic bottle for laundry or dish soap.', sentence:'Rinse the detergent bottle and put it in the white bin.' },
+      { id:'oil-bottle', word:'Rinsed Oil Bottle', phonetic:'/rɪnst ɔɪl ˈbɑːtəl/', emoji:'🫒', bin:'white', material:'plastic', kg:0.04, place:'home',
+        clip:['an empty plastic cooking oil bottle','a clean vegetable oil bottle'],
+        definition:'An empty cooking oil bottle washed with soap and water.', sentence:'Wash the oil bottle with soap before putting it in the white bin.' },
+      { id:'plastic-hanger', word:'Plastic Hanger', phonetic:'/ˈplæstɪk ˈhæŋər/', emoji:'🪝', bin:'white', material:'plastic', kg:0.05, place:'home',
+        clip:['a plastic clothes hanger'],
+        definition:'A plastic hook used to hang clothes.', sentence:'Broken plastic hangers go in the white bin.' },
+      { id:'aluminum-tray', word:'Aluminum Tray', phonetic:'/əˈluːmənəm treɪ/', emoji:'🥘', bin:'white', material:'aluminum', kg:0.03, place:'home',
+        clip:['a disposable aluminum food tray','an aluminum baking pan'],
+        definition:'A light metal tray used for cooking or takeout food.', sentence:'Clean the aluminum tray and recycle it in the white bin.' },
+      { id:'cookie-tin', word:'Cookie Tin', phonetic:'/ˈkʊki tɪn/', emoji:'🥮', bin:'white', material:'steel', kg:0.2, place:'home',
+        clip:['a metal cookie tin','a round tin box'],
+        definition:'A metal box for cookies, often reused for sewing kits.', sentence:'Reuse the cookie tin, or recycle it in the white bin.' },
+      // HOME · green
+      { id:'potato-peels', word:'Potato Peels', phonetic:'/pəˈteɪtoʊ piːlz/', emoji:'🥔', bin:'green', material:'organic', kg:0.05, place:'home',
+        clip:['potato peels','peeled potato skins'],
+        definition:'The thin brown skin removed from potatoes.', sentence:'Potato peels go in the green bin for compost.' },
+      { id:'tea-bag', word:'Tea Bag', phonetic:'/tiː bæɡ/', emoji:'🍵', bin:'green', material:'organic', kg:0.003, place:'home',
+        clip:['a used tea bag','tea bags'],
+        definition:'A small paper bag with tea or herbs inside.', sentence:'Used tea bags are organic waste for the green bin.' },
+      { id:'chicken-bones', word:'Chicken Bones', phonetic:'/ˈtʃɪkɪn boʊnz/', emoji:'🍗', bin:'green', material:'organic', kg:0.05, place:'home',
+        clip:['chicken bones','leftover chicken drumstick bones'],
+        definition:'The bones left after eating chicken.', sentence:'Chicken bones are food waste, so they go in the green bin.' },
+      { id:'watermelon-rind', word:'Watermelon Rind', phonetic:'/ˈwɔːtərmelən raɪnd/', emoji:'🍉', bin:'green', material:'organic', kg:0.3, place:'home',
+        clip:['watermelon rinds','a slice of watermelon'],
+        definition:'The thick green skin of a watermelon.', sentence:'Watermelon rinds decompose in the green bin.' },
+      { id:'peanut-shells', word:'Peanut Shells', phonetic:'/ˈpiːnʌt ʃelz/', emoji:'🥜', bin:'green', material:'organic', kg:0.01, place:'both',
+        clip:['peanut shells','a pile of peanuts in their shells'],
+        definition:'The dry shells around peanuts.', sentence:'Peanut shells are organic, so they go in the green bin.' },
+      { id:'plantain-peel', word:'Plantain Peel', phonetic:'/ˈplæntən piːl/', emoji:'🍌', bin:'green', material:'organic', kg:0.08, place:'home',
+        clip:['a green plantain peel','plantain skins'],
+        definition:'The thick skin of a plantain (plátano).', sentence:'Plantain peels go in the green bin to become compost.' },
+      { id:'leftover-rice', word:'Leftover Rice', phonetic:'/ˈleftoʊvər raɪs/', emoji:'🍙', bin:'green', material:'organic', kg:0.1, place:'home',
+        clip:['leftover cooked rice','a bowl of white rice'],
+        definition:'Cooked rice that nobody ate.', sentence:'Leftover rice goes in the green bin; better yet, cook only what you need.' },
+      { id:'grass-clippings', word:'Grass Clippings', phonetic:'/ɡræs ˈklɪpɪŋz/', emoji:'🌱', bin:'green', material:'organic', kg:0.2, place:'home',
+        clip:['freshly cut grass','grass clippings'],
+        definition:'Small pieces of grass after cutting the lawn.', sentence:'Grass clippings are garden waste for the green bin.' },
+      // HOME · black
+      { id:'wet-wipes', word:'Wet Wipes', phonetic:'/wet waɪps/', emoji:'💦', bin:'black', material:'residual', kg:0.005, place:'home',
+        clip:['used wet wipes','a pack of baby wipes'],
+        definition:'Wet cloths used for cleaning hands or babies.', sentence:'Never flush wet wipes; put them in the black bin.' },
+      { id:'cotton-swabs', word:'Cotton Swabs', phonetic:'/ˈkɑːtən swɑːbz/', emoji:'🪶', bin:'black', material:'residual', kg:0.001, place:'home',
+        clip:['cotton swabs','cotton buds'],
+        definition:'Small sticks with cotton on the ends (copitos).', sentence:'Used cotton swabs are sanitary waste for the black bin.' },
+      { id:'razor', word:'Disposable Razor', phonetic:'/dɪˈspoʊzəbəl ˈreɪzər/', emoji:'🪒', bin:'black', material:'residual', kg:0.02, place:'home',
+        clip:['a disposable razor','a plastic shaving razor'],
+        definition:'A plastic razor used for shaving.', sentence:'Cover the blade and put the disposable razor in the black bin.' },
+      { id:'broken-mirror', word:'Broken Mirror', phonetic:'/ˈbroʊkən ˈmɪrər/', emoji:'🪞', bin:'black', material:'residual', kg:0.3, place:'home',
+        clip:['a broken mirror','shards of a mirror'],
+        definition:'Pieces of a mirror. Mirror glass is not like bottle glass.', sentence:'Wrap a broken mirror in newspaper and put it in the black bin.' },
+      { id:'floor-sweepings', word:'Floor Sweepings', phonetic:'/flɔːr ˈswiːpɪŋz/', emoji:'🧹', bin:'black', material:'residual', kg:0.05, place:'both',
+        clip:['dust and dirt swept from the floor','a dustpan with dirt'],
+        definition:'Dust and dirt you collect with a broom.', sentence:'Floor sweepings go in the black bin.' },
+      { id:'dirty-plastic-bag', word:'Dirty Plastic Bag', phonetic:'/ˈdɜːrti ˈplæstɪk bæɡ/', emoji:'🗑️', bin:'black', material:'residual', kg:0.02, place:'home',
+        clip:['a dirty greasy plastic bag','a plastic bag full of food waste'],
+        definition:'A plastic bag stained with food or grease.', sentence:'If a plastic bag is dirty, it cannot be recycled: use the black bin.' },
+      { id:'cat-litter', word:'Cat Litter', phonetic:'/kæt ˈlɪtər/', emoji:'🐈', bin:'black', material:'residual', kg:0.5, place:'home',
+        clip:['used cat litter','a cat litter box'],
+        definition:'Sand used by cats as a toilet.', sentence:'Used cat litter goes in a closed bag in the black bin.' },
+      // HOME · special
+      { id:'used-cooking-oil', word:'Used Cooking Oil', phonetic:'/juːzd ˈkʊkɪŋ ɔɪl/', emoji:'🛢️', bin:'special', material:'hazardous', kg:0.9, place:'home',
+        clip:['a bottle of dark used cooking oil','used frying oil in a container'],
+        definition:'Oil that was used for frying food.', sentence:'Never pour used cooking oil down the sink; one liter pollutes a lot of water. Take it to a collection point.' },
+      { id:'paint-can', word:'Paint Can', phonetic:'/peɪnt kæn/', emoji:'🎨', bin:'special', material:'hazardous', kg:1.0, place:'home', imagenet:['paintbrush'],
+        clip:['a can of paint','a paint bucket with leftover paint'],
+        definition:'A metal can with paint or varnish inside.', sentence:'Leftover paint is hazardous; take it to a collection point.' },
+      { id:'insecticide-spray', word:'Insecticide Spray', phonetic:'/ɪnˈsektɪsaɪd spreɪ/', emoji:'🦟', bin:'special', material:'hazardous', kg:0.3, place:'home',
+        clip:['an insecticide spray can','a bug spray aerosol can'],
+        definition:'A spray can with poison to kill insects.', sentence:'Insecticide cans are hazardous waste for the collection point.' },
+      { id:'mercury-thermometer', word:'Mercury Thermometer', phonetic:'/ˈmɜːrkjəri θərˈmɑːmɪtər/', emoji:'🌡️', bin:'special', material:'hazardous', kg:0.02, place:'home',
+        clip:['a glass mercury thermometer','a clinical thermometer'],
+        definition:'An old glass thermometer with silver liquid (mercury).', sentence:'Mercury is toxic; take old thermometers to a pharmacy collection point.' },
+      { id:'small-appliance', word:'Small Appliance', phonetic:'/smɔːl əˈplaɪəns/', emoji:'📻', bin:'special', material:'hazardous', kg:1.5, place:'home', imagenet:['hand blower','blow dryer','blow drier','hair dryer','hair drier','iron','smoothing iron','toaster','electric fan','blower','radio','wireless','hair slide','espresso maker'],
+        clip:['a broken hair dryer','an old blender','a small kitchen appliance','an electric iron','a radio'],
+        definition:'A small electric machine like a blender, hair dryer or iron.', sentence:'Broken small appliances are e-waste; take them to a collection point.' },
+      { id:'chemical-bottle', word:'Chemical Bottle', phonetic:'/ˈkemɪkəl ˈbɑːtəl/', emoji:'🧪', bin:'special', material:'hazardous', kg:1.0, place:'home',
+        clip:['a bottle of bleach','a bottle of cleaning chemicals','a drain cleaner bottle'],
+        definition:'A bottle that still has bleach, drain cleaner or strong chemicals.', sentence:'Bottles with chemicals inside are hazardous; ask an adult to take them to a collection point.' }
+    ];
+    // Items that are common both in the classroom and at home, or only in the classroom (the rest are "home")
+    const PLACE_OF = {
+      classroom: ['printer-paper', 'notebook', 'pen'],
+      both: ['plastic-bottle','aluminum-can','juice-carton','envelope','old-book','plastic-bag','plastic-container','bottle-cap','cardboard-box',
+             'apple-core','banana-peel','orange-peel','fruit-scraps','bread-crust','food-leftovers',
+             'used-napkin','chip-bag','candy-wrapper','disposable-cup','face-mask','adhesive-bandage','plastic-straw','plastic-cutlery',
+             'electronic-waste','battery','charger-cable','old-phone']
+    };
+    WASTE_ITEMS.forEach(it => {
+      it.place = PLACE_OF.classroom.includes(it.id) ? 'classroom' : PLACE_OF.both.includes(it.id) ? 'both' : 'home';
+    });
+    WASTE_ITEMS.push(...NEW_ITEMS);
+    // Keep the list grouped by bin (white → green → black → collection point)
+    { const ord = { white: 0, green: 1, black: 2, special: 3 }; const idx = new Map(WASTE_ITEMS.map((it, i) => [it, i]));
+      WASTE_ITEMS.sort((a, b) => ord[a.bin] - ord[b.bin] || idx.get(a) - idx.get(b)); }
+
+    /* Visual descriptions used by the zero-shot AI (MobileCLIP).
+       Each item is recognized by comparing the photo against these phrases. */
+    const CLIP_PROMPTS = {
+      'plastic-bottle':   ['a clear plastic water bottle', 'an empty plastic soda bottle', 'a crushed plastic bottle', 'a plastic juice bottle'],
+      'glass-bottle':     ['a glass bottle', 'an empty glass beer bottle', 'a glass wine bottle'],
+      'glass-jar':        ['an empty glass jar', 'a glass jam jar with a metal lid'],
+      'aluminum-can':     ['an aluminum soda can', 'a crushed aluminum beer can', 'a metal drink can'],
+      'food-tin':         ['a steel food tin can', 'an open can of tuna', 'a tin can of beans'],
+      'cardboard-box':    ['a cardboard box', 'a brown corrugated cardboard box', 'a flattened cardboard box'],
+      'newspaper':        ['a folded newspaper', 'a pile of old newspapers'],
+      'printer-paper':    ['a sheet of white printer paper', 'a stack of white paper sheets', 'a printed paper document'],
+      'envelope':         ['a paper envelope', 'a white mail envelope'],
+      'old-book':         ['a book', 'an old paperback book', 'a hardcover book'],
+      'magazine':         ['a glossy magazine', 'a magazine cover'],
+      'juice-carton':     ['a juice carton box', 'a Tetra Pak milk carton', 'a small juice box with a straw'],
+      'egg-carton':       ['an egg carton', 'a gray paper egg tray'],
+      'plastic-bag':      ['a plastic shopping bag', 'a crumpled plastic bag'],
+      'plastic-container':['a plastic food container', 'an empty yogurt cup', 'a plastic takeout box'],
+      'shampoo-bottle':   ['a shampoo bottle', 'a plastic soap bottle', 'a plastic lotion bottle'],
+      'notebook':         ['a school notebook', 'a spiral notebook', 'an open notebook with lined paper'],
+      'bottle-cap':       ['a plastic bottle cap', 'small bottle caps', 'a metal bottle cap'],
+      'aluminum-foil':    ['a crumpled ball of aluminum foil', 'a sheet of shiny aluminum foil'],
+      'milk-bag':         ['a plastic bag of milk', 'an empty white milk bag'],
+
+      'apple-core':       ['a half-eaten apple core', 'an apple', 'a bitten apple'],
+      'banana-peel':      ['a banana peel', 'a banana', 'a brown banana skin'],
+      'orange-peel':      ['orange peels', 'an orange', 'a lemon', 'a lime'],
+      'pineapple-skin':   ['pineapple skin', 'a pineapple'],
+      'mango-peel':       ['a mango peel and seed', 'a mango'],
+      'fruit-scraps':     ['fruit scraps', 'strawberries', 'grapes', 'pieces of leftover fruit', 'a papaya'],
+      'avocado-skin':     ['an avocado skin and pit', 'a cut avocado', 'an avocado'],
+      'vegetable-scraps': ['vegetable scraps', 'broccoli', 'lettuce leaves', 'a tomato', 'an onion'],
+      'carrot-peels':     ['carrot peels', 'a carrot'],
+      'corn-cob':         ['a corn cob', 'an ear of corn'],
+      'mushroom-stems':   ['mushrooms', 'mushroom stems'],
+      'bread-crust':      ['a piece of bread', 'bread crusts', 'a bread roll', 'an arepa'],
+      'food-leftovers':   ['food leftovers on a plate', 'leftover food scraps in a bowl', 'a slice of pizza'],
+      'eggshells':        ['broken eggshells', 'cracked egg shells', 'an egg'],
+      'coffee-grounds':   ['used coffee grounds', 'a coffee filter with wet coffee grounds'],
+      'dry-leaves':       ['dry fallen leaves', 'brown dead leaves'],
+      'plant-trimmings':  ['green plant trimmings', 'cut branches and leaves', 'a green leaf', 'a potted plant'],
+      'wilted-flowers':   ['wilted flowers', 'dead dry flowers', 'a bouquet of flowers'],
+
+      'used-napkin':      ['a used paper napkin', 'a crumpled dirty tissue', 'a used paper towel', 'a roll of toilet paper'],
+      'diaper':           ['a disposable diaper', 'a baby diaper'],
+      'chip-bag':         ['an empty potato chip bag', 'a shiny snack bag', 'a bag of chips'],
+      'candy-wrapper':    ['a candy wrapper', 'a chocolate bar wrapper', 'a lollipop', 'candies'],
+      'disposable-cup':   ['a disposable paper coffee cup', 'a plastic cup', 'a takeaway cup with a lid'],
+      'styrofoam-tray':   ['a white styrofoam food tray', 'a white foam takeout container', 'a styrofoam cup'],
+      'greasy-pizza-box': ['a greasy pizza box', 'an open pizza box with grease stains'],
+      'toothbrush':       ['a toothbrush', 'an old plastic toothbrush'],
+      'face-mask':        ['a disposable face mask', 'a blue surgical mask'],
+      'adhesive-bandage': ['an adhesive bandage', 'a band-aid'],
+      'receipt':          ['a paper receipt', 'a long store receipt'],
+      'plastic-straw':    ['a plastic drinking straw', 'plastic straws'],
+      'broken-plate':     ['a broken ceramic plate', 'pieces of a broken ceramic mug'],
+      'cigarette-butt':   ['a cigarette butt', 'cigarette ends in an ashtray'],
+      'candle-stub':      ['a candle', 'a small melted candle'],
+      'kitchen-sponge':   ['a kitchen sponge', 'a yellow and green dish sponge'],
+      'pen':              ['a pen', 'a pencil', 'a ballpoint pen'],
+      'plastic-cutlery':  ['a plastic fork', 'disposable plastic cutlery', 'a plastic spoon'],
+
+      'battery':          ['AA batteries', 'a battery', 'a cylindrical alkaline battery', 'a 9 volt battery', 'a button cell battery'],
+      'old-phone':        ['a smartphone', 'an old cell phone', 'a mobile phone'],
+      'electronic-waste': ['a laptop', 'a computer keyboard', 'a computer mouse', 'a TV remote control', 'an old tablet'],
+      'charger-cable':    ['a phone charger with cable', 'a USB cable', 'an electrical cord'],
+      'light-bulb':       ['a light bulb', 'a fluorescent lamp tube', 'an LED bulb'],
+      'expired-medicine': ['a blister pack of pills', 'medicine pills', 'a medicine bottle', 'a box of medicine'],
+      'syringe':          ['a syringe', 'a medical syringe with a needle']
+    };
+    NEW_ITEMS.forEach(it => { CLIP_PROMPTS[it.id] = it.clip; });
+    // "Nothing to sort" classes, so the AI does not force a wrong answer when it only sees background
+    const BACKGROUND_PROMPTS = ["a person's face", 'a person', 'an empty room', 'a blank wall', 'a ceiling', 'a floor', 'a table with nothing on it', 'a window', 'a door'];
+
+    const ITEM_BY_ID = Object.fromEntries(WASTE_ITEMS.map(i => [i.id, i]));
+    const IMAGENET_INDEX = new Map();
+    const COCO_INDEX = new Map();
+    WASTE_ITEMS.forEach(it => {
+      (it.imagenet || []).forEach(k => IMAGENET_INDEX.set(k.toLowerCase(), it.id));
+      (it.coco || []).forEach(k => COCO_INDEX.set(k, it.id));
+    });
+    // Detector labels that are background/people, not waste
+    const IGNORE_COCO = new Set(['person','dining table','chair','couch','bed','toilet','sink','refrigerator','oven','car','bench','tie','clock']);
+
+    function impactOf(item) {
+      const m = MATERIALS[item.material] || MATERIALS.residual;
+      return { co2: m.co2 * item.kg, water: m.water * item.kg, energy: m.energy * item.kg };
+    }
+
+    const HERO_LEVELS = [
+      { level: 1, name: 'Eco Rookie',       minXp: 0 },
+      { level: 2, name: 'Green Apprentice', minXp: 100 },
+      { level: 3, name: 'Waste Defender',   minXp: 250 },
+      { level: 4, name: 'Eco Guardian',     minXp: 500 },
+      { level: 5, name: 'Recycling Expert', minXp: 1000 },
+      { level: 6, name: 'Planet Master',    minXp: 2000 }
+    ];
+
+    const MISSIONS = [
+      { desc: 'Sort 3 White Bin recyclables correctly',         target: 3, test: it => it.bin === 'white' },
+      { desc: 'Sort 3 Green Bin organics correctly',            target: 3, test: it => it.bin === 'green' },
+      { desc: 'Sort 3 Black Bin items correctly',               target: 3, test: it => it.bin === 'black' },
+      { desc: 'Send 2 hazardous items to the Collection Point', target: 2, test: it => it.bin === 'special' },
+      { desc: 'Scan & sort 2 real objects with the camera',     target: 2, test: (it, src) => src === 'camera' },
+      { desc: 'Sort any 5 items correctly',                     target: 5, test: () => true }
+    ];
+
+    /* ==========================================================================
+       2. STATE (saved on this device)
+       ========================================================================== */
+    const STORAGE_KEY = 'ecoquest_state_v2';
+    const DEFAULT_STATE = {
+      xp: 0, level: 1, streak: 0, bestStreak: 0, totalSorted: 0, attempts: 0, correct: 0,
+      soundEnabled: true, impact: { co2: 0, water: 0, energy: 0 },
+      binCounts: { white: 0, green: 0, black: 0, special: 0 },
+      missionIndex: 0, missionProgress: 0, quizScore: 0, learned: [],
+      scanned: 0, misses: {}, student: { name: '', grade: '' }, lastSent: null, sendQueue: []
+    };
+    const clone = o => JSON.parse(JSON.stringify(o));
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const s = JSON.parse(raw);
+          return { ...clone(DEFAULT_STATE), ...s,
+            impact: { ...DEFAULT_STATE.impact, ...(s.impact || {}) },
+            binCounts: { ...DEFAULT_STATE.binCounts, ...(s.binCounts || {}) },
+            misses: (s.misses && typeof s.misses === 'object') ? s.misses : {},
+            student: { ...DEFAULT_STATE.student, ...(s.student || {}) },
+            sendQueue: Array.isArray(s.sendQueue) ? s.sendQueue : [],
+            learned: Array.isArray(s.learned) ? s.learned : [] };
+        }
+      } catch (e) { /* storage unavailable */ }
+      return clone(DEFAULT_STATE);
+    }
+    function saveState() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {} }
+
+    let state = loadState();
+    let quizDeck = [];
+    let currentQuizItem = null;
+    let quizAnswered = false;
+    let questionCount = 0;
+    let userHasInteracted = false;
+
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const show = (el, disp = 'flex') => { el = typeof el === 'string' ? $(el) : el; el.classList.remove('hidden'); if (disp) el.classList.add(disp); };
+    const hide = el => { el = typeof el === 'string' ? $(el) : el; el.classList.add('hidden'); };
+    function refreshIcons() { if (window.lucide) lucide.createIcons(); }
+
+    /* ==========================================================================
+       3. AUDIO: SOUND EFFECTS + ENGLISH TEXT-TO-SPEECH (mobile-safe)
+       ========================================================================== */
+    const AudioEngine = {
+      ctx: null,
+      init() {
+        if (!this.ctx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return false;
+          this.ctx = new AC();
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        return true;
+      },
+      tone(type, freqs, dur, vol = 0.18) {
+        if (!state.soundEnabled || !this.init()) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        freqs.forEach(([f, t]) => osc.frequency.setValueAtTime(f, now + t));
+        gain.gain.setValueAtTime(vol, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + dur);
+      },
+      playCorrect() { this.tone('triangle', [[523.25, 0], [659.25, 0.1], [783.99, 0.2]], 0.4); },
+      playWrong()   { this.tone('sawtooth', [[220, 0], [180, 0.15]], 0.35, 0.12); },
+      playLevelUp() { this.tone('square',   [[523.25, 0], [659.25, 0.1], [783.99, 0.2], [1046.5, 0.3]], 0.6, 0.1); }
+    };
+
+    const Speech = {
+      supported: 'speechSynthesis' in window,
+      voice: null, unlocked: false,
+      init() {
+        if (!this.supported) return;
+        const pick = () => {
+          const voices = speechSynthesis.getVoices();
+          if (!voices.length) return;
+          const en = voices.filter(v => /^en[-_]/i.test(v.lang) || v.lang === 'en');
+          const us = en.filter(v => /en[-_]US/i.test(v.lang));
+          const preferred = /Google US English|Samantha|Microsoft (Aria|Jenny|Zira)|Alex/i;
+          this.voice = us.find(v => preferred.test(v.name)) || us.find(v => v.localService) || us[0]
+                    || en.find(v => /en[-_]GB/i.test(v.lang)) || en[0] || null;
+        };
+        pick();
+        if (typeof speechSynthesis.addEventListener === 'function') speechSynthesis.addEventListener('voiceschanged', pick);
+        else speechSynthesis.onvoiceschanged = pick;
+      },
+      // iOS/Android only allow speech after a user gesture: prime it once with a silent utterance.
+      unlock() {
+        if (!this.supported || this.unlocked) return;
+        try {
+          const u = new SpeechSynthesisUtterance(' ');
+          u.volume = 0; u.lang = 'en-US';
+          speechSynthesis.speak(u);
+          this.unlocked = true;
+        } catch (e) {}
+      },
+      speak(text, opts = {}) {
+        if (!this.supported || !text) return;
+        if (opts.auto && !state.soundEnabled) return;
+        try {
+          speechSynthesis.cancel();
+          // Small delay: Chrome/Android drops utterances spoken right after cancel()
+          setTimeout(() => {
+            const u = new SpeechSynthesisUtterance(text);
+            if (this.voice) { u.voice = this.voice; u.lang = this.voice.lang; } else { u.lang = 'en-US'; }
+            u.rate = opts.rate || 0.85;
+            u.pitch = 1;
+            if (speechSynthesis.paused) speechSynthesis.resume();
+            speechSynthesis.speak(u);
+          }, 80);
+        } catch (e) {}
+      }
+    };
+    function speakWord(text) { Speech.speak(text); }
+
+    function onFirstInteraction() {
+      userHasInteracted = true;
+      Speech.unlock();
+      AudioEngine.init();
+    }
+    ['pointerdown', 'touchend', 'keydown'].forEach(ev =>
+      document.addEventListener(ev, onFirstInteraction, { once: true, passive: true }));
+
+    function toggleSound() {
+      state.soundEnabled = !state.soundEnabled;
+      if (!state.soundEnabled && Speech.supported) speechSynthesis.cancel();
+      saveState();
+      renderSoundIcon();
+    }
+    function renderSoundIcon() {
+      $('sound-btn').innerHTML = `<i data-lucide="${state.soundEnabled ? 'volume-2' : 'volume-x'}" class="w-5 h-5"></i>`;
+      refreshIcons();
+    }
+
+    /* ==========================================================================
+       4. NAVIGATION
+       ========================================================================== */
+    const TAB_ON  = 'tab-btn flex-1 py-2.5 px-2 sm:px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition bg-indigo-600 text-white shadow-lg shadow-indigo-600/30';
+    const TAB_OFF = 'tab-btn flex-1 py-2.5 px-2 sm:px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition text-slate-400 hover:text-white';
+    let activeTab = 'arcade';
+
+    function switchTab(tab) {
+      activeTab = tab;
+      ['camera', 'arcade', 'dictionary'].forEach(t => {
+        const view = $(`view-${t}`);
+        if (t === tab) show(view); else hide(view);
+        $(`tab-${t}`).className = (t === tab) ? TAB_ON : TAB_OFF;
+      });
+      if (tab === 'dictionary') renderDictionary();
+      if (tab === 'camera') {
+        ensureModels().catch(() => {}); // preload AI while the user gets ready
+      } else if (Cam.stream) {
+        stopCamera();
+      }
+    }
+
+    /* ==========================================================================
+       5. SCORING, MISSIONS & LEVELS
+       ========================================================================== */
+    function comboMultiplier() {
+      if (state.streak >= 10) return 2;
+      if (state.streak >= 5) return 1.5;
+      return 1;
+    }
+
+    // Returns details used for feedback
+    function recordSort(item, isCorrect, source) {
+      // Scan mode teaches (the system gives the answer), so it does not count toward
+      // quiz accuracy or combo streak — only Arcade answers do.
+      const isPractice = source !== 'camera';
+      if (!state.learned.includes(item.id)) state.learned.push(item.id);
+      if (isPractice) state.attempts++;
+      if (!isCorrect) {
+        state.streak = 0;
+        state.misses[item.id] = (state.misses[item.id] || 0) + 1;
+        saveState(); updatePlayerUI();
+        return { xp: 0, points: 0, combo: 1, impact: null };
+      }
+      if (!isPractice) state.scanned++;
+      if (isPractice) {
+        state.correct++;
+        state.streak++;
+        state.bestStreak = Math.max(state.bestStreak, state.streak);
+      }
+      const combo = comboMultiplier();
+      const xp = Math.round((isPractice ? 20 : 15) * combo);
+      const points = Math.round(10 * combo);
+      const imp = impactOf(item);
+      state.xp += xp;
+      state.totalSorted++;
+      state.binCounts[item.bin]++;
+      state.impact.co2 += imp.co2;
+      state.impact.water += imp.water;
+      state.impact.energy += imp.energy;
+      progressMission(item, source);
+      checkLevelUp();
+      saveState();
+      updatePlayerUI();
+      return { xp, points, combo, impact: imp };
+    }
+
+    function progressMission(item, source) {
+      const m = MISSIONS[state.missionIndex % MISSIONS.length];
+      if (!m.test(item, source)) return;
+      state.missionProgress++;
+      if (state.missionProgress >= m.target) {
+        state.xp += 50;
+        state.missionIndex = (state.missionIndex + 1) % MISSIONS.length;
+        state.missionProgress = 0;
+        setTimeout(() => { toast('🎯 Mission complete! +50 XP'); triggerConfetti(120); }, 400);
+      }
+    }
+
+    function levelForXp(xp) {
+      let lvl = HERO_LEVELS[0];
+      for (const l of HERO_LEVELS) if (xp >= l.minXp) lvl = l;
+      return lvl;
+    }
+    function checkLevelUp() {
+      const lvl = levelForXp(state.xp);
+      if (lvl.level > state.level) {
+        state.level = lvl.level;
+        setTimeout(() => {
+          AudioEngine.playLevelUp();
+          triggerConfetti(150);
+          toast(`⭐ Level up! You are now a ${lvl.name}`);
+          $('level-badge').classList.remove('bump'); void $('level-badge').offsetWidth; $('level-badge').classList.add('bump');
+        }, 600);
+      }
+      state.level = lvl.level;
+    }
+
+    /* ==========================================================================
+       6. BIN BUTTONS (shared by Arcade and Camera)
+       ========================================================================== */
+    function binButtonsHTML(attr, compact) {
+      return BIN_ORDER.map((k, i) => {
+        const b = BINS[k];
+        return `
+          <button ${attr}="${k}" class="p-3 sm:p-4 rounded-2xl bg-slate-900 hover:bg-slate-800 border-2 ${b.btn} flex flex-col items-center gap-2 transition glass-card-hover group">
+            <div class="w-11 h-11 rounded-xl ${b.chip} flex items-center justify-center text-2xl shadow-lg transition">${b.icon}</div>
+            <div class="text-center">
+              <span class="block font-heading font-bold ${b.title} text-xs sm:text-sm">${b.label}</span>
+              <span class="text-[11px] text-slate-400 block font-semibold">${b.short}</span>
+              ${compact ? '' : `<span class="text-[10px] text-slate-500 block mt-0.5 leading-tight">(${b.examples})</span>`}
+              ${compact ? '' : `<span class="hidden sm:inline-block text-[10px] text-slate-600 mt-1">key ${i + 1}</span>`}
+            </div>
+          </button>`;
+      }).join('');
+    }
+
+    /* ==========================================================================
+       7. ARCADE QUIZ
+       ========================================================================== */
+    function shuffle(arr) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+      return a;
+    }
+
+    function nextQuizItem() {
+      if (!quizDeck.length) {
+        quizDeck = shuffle(WASTE_ITEMS);
+        if (currentQuizItem && quizDeck[0] === currentQuizItem) quizDeck.push(quizDeck.shift());
+      }
+      return quizDeck.shift();
+    }
+
+    function loadQuizQuestion() {
+      currentQuizItem = nextQuizItem();
+      quizAnswered = false;
+      questionCount++;
+      const item = currentQuizItem;
+      $('question-num').innerText = questionCount;
+      $('item-emoji').innerText = item.emoji;
+      $('item-word').innerText = item.word;
+      $('item-phonetic').innerText = item.phonetic;
+      $('item-definition').innerText = item.definition;
+      if (userHasInteracted && activeTab === 'arcade') Speech.speak(item.word, { auto: true });
+    }
+
+    function speakCurrentItem() { if (currentQuizItem) Speech.speak(currentQuizItem.word); }
+
+    function submitAnswer(selectedBin) {
+      if (quizAnswered || !currentQuizItem) return;
+      quizAnswered = true;
+      const item = currentQuizItem;
+      const isCorrect = selectedBin === item.bin;
+      const res = recordSort(item, isCorrect, 'arcade');
+      const bin = BINS[item.bin];
+
+      if (isCorrect) {
+        AudioEngine.playCorrect();
+        triggerConfetti();
+        state.quizScore += res.points;
+        saveState();
+        showModal(true, 'Awesome Job!',
+          `Spot on! <strong>${esc(item.word)}</strong> goes in the <strong>${bin.label}</strong>.<br><span class="text-emerald-300 font-bold">+${res.xp} XP${res.combo > 1 ? ` (x${res.combo} combo!)` : ''}</span>`,
+          item.sentence, res.impact);
+      } else {
+        AudioEngine.playWrong();
+        const card = $('quiz-card');
+        card.classList.remove('shake-anim'); void card.offsetWidth; card.classList.add('shake-anim');
+        showModal(false, 'Not Quite Right!',
+          `<strong>${esc(item.word)}</strong> actually goes in the <strong>${bin.label}</strong> (${bin.short}).`,
+          `${item.sentence} ${bin.guide}`, null);
+      }
+      $('score-text').innerText = `Score: ${state.quizScore}`;
+    }
+
+    function closeModalNext() {
+      hide('modal-feedback');
+      loadQuizQuestion();
+    }
+
+    /* ==========================================================================
+       8. CAMERA + AI VISION
+          Main engine : MobileCLIP-S0 zero-shot (Transformers.js). The photo is compared with
+                        text descriptions of EVERY item in the database, so any item can be recognized.
+          Backup      : MobileNet + COCO-SSD (TensorFlow.js), used only if the main engine fails to load.
+       ========================================================================== */
+    const Cam = { stream: null, facing: 'environment', models: { mobilenet: null, coco: null }, loading: null, busy: false, scanItem: null, answered: false };
+
+    const CLIP_CFG = {
+      lib: 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2',
+      model: 'Xenova/mobileclip_s0',
+      template: d => `a photo of ${d}.`,
+      scale: 100,          // CLIP logit scale
+      confident: 0.30,     // ≥ this → identified
+      guess: 0.12          // ≥ this → shown as "best guess"; below → ask the user
+    };
+    const AI = { mode: null, T: null, processor: null, vision: null, classes: null, textEmb: null, dim: 0 };
+
+    function setAIStatus(kind, text) {
+      const dot = $('ai-dot');
+      dot.className = 'w-2 h-2 rounded-full ' + ({ loading: 'bg-amber-400 animate-pulse', ready: 'bg-emerald-400', error: 'bg-rose-500' }[kind] || 'bg-slate-500');
+      $('ai-text').innerText = text;
+    }
+
+    function setProgress(text, pct) {
+      if (text == null) { hide('ai-progress'); return; }
+      show('ai-progress', 'block');
+      $('ai-progress-text').innerText = text;
+      const p = Math.max(0, Math.min(100, Math.round(pct || 0)));
+      $('ai-progress-pct').innerText = p + '%';
+      $('ai-progress-bar').style.width = p + '%';
+    }
+
+    function ensureModels() {
+      if (Cam.loading) return Cam.loading;
+      Cam.loading = (async () => {
+        try {
+          await loadClipEngine();
+          AI.mode = 'clip';
+          setAIStatus('ready', `AI ready · knows ${WASTE_ITEMS.length} objects`);
+        } catch (err) {
+          console.warn('MobileCLIP unavailable, switching to backup AI', err);
+          setProgress('Main AI unavailable — loading backup AI…', 10);
+          await loadLegacyEngine();
+          AI.mode = 'legacy';
+          setAIStatus('ready', 'Backup AI ready (less precise)');
+        } finally {
+          setProgress(null);
+        }
+      })().catch(err => {
+        Cam.loading = null;
+        setProgress(null);
+        setAIStatus('error', 'AI failed to load');
+        showCamError('Could not load the AI model. Check your internet connection and try again. You can still pick the item from the list.');
+        throw err;
+      });
+      return Cam.loading;
+    }
+
+    /* ---------- Main engine: MobileCLIP ---------- */
+    function buildClassList() {
+      const classes = [];
+      WASTE_ITEMS.forEach(it => {
+        const descs = CLIP_PROMPTS[it.id] || [it.word.toLowerCase()];
+        classes.push({ id: it.id, label: descs[0], prompts: descs.map(CLIP_CFG.template) });
+      });
+      BACKGROUND_PROMPTS.forEach((d, i) => classes.push({ id: null, label: d, prompts: [CLIP_CFG.template(d)] }));
+      return classes;
+    }
+
+    function hashStr(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
+    function f32ToB64(arr) {
+      const u8 = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength); let s = '';
+      for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+      return btoa(s);
+    }
+    function b64ToF32(b64) {
+      const s = atob(b64), u8 = new Uint8Array(s.length);
+      for (let i = 0; i < s.length; i++) u8[i] = s.charCodeAt(i);
+      return new Float32Array(u8.buffer);
+    }
+    function l2norm(v) { let n = 0; for (let i = 0; i < v.length; i++) n += v[i] * v[i]; n = Math.sqrt(n) || 1; for (let i = 0; i < v.length; i++) v[i] /= n; return v; }
+
+    async function loadClipEngine() {
+      setAIStatus('loading', 'Loading AI…');
+      setProgress('Loading AI engine…', 2);
+      const T = await import(CLIP_CFG.lib);
+      AI.T = T;
+      T.env.allowLocalModels = false;   // always fetch from the Hugging Face hub (needed on GitHub Pages)
+      T.env.useBrowserCache = true;     // model files are cached by the browser after the first download
+      try { T.env.backends.onnx.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 2) : 1; } catch (e) {}
+
+      const classes = buildClassList();
+      const allPrompts = classes.flatMap(c => c.prompts);
+      const cacheKey = `ecoquest_clipemb_${CLIP_CFG.model}_${hashStr(allPrompts.join('|'))}`;
+
+      // Download tracking (sum of all files)
+      const files = {};
+      const progressCb = label => p => {
+        if (p.status === 'progress' && p.file) {
+          files[p.file] = { loaded: p.loaded || 0, total: p.total || 0 };
+          const tot = Object.values(files).reduce((a, f) => a + f.total, 0);
+          const got = Object.values(files).reduce((a, f) => a + f.loaded, 0);
+          const mb = (got / 1048576).toFixed(0), tmb = (tot / 1048576).toFixed(0);
+          setProgress(`${label} ${mb}/${tmb} MB`, tot ? (got / tot) * 100 : 0);
+          setAIStatus('loading', `Downloading AI ${tot ? Math.round((got / tot) * 100) : 0}%`);
+        }
+      };
+
+      // 1) Text side: encode every item description once, then keep the result on this device
+      let cached = null;
+      try { cached = JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch (e) {}
+      let promptEmb, dim;
+      if (cached && cached.b64) {
+        promptEmb = b64ToF32(cached.b64); dim = cached.dim;
+      } else {
+        const tokenizer = await T.AutoTokenizer.from_pretrained(CLIP_CFG.model, { progress_callback: progressCb('Downloading AI (1/2)') });
+        const textModel = await T.CLIPTextModelWithProjection.from_pretrained(CLIP_CFG.model, { progress_callback: progressCb('Downloading AI (1/2)') });
+        const out = [];
+        const B = 16;
+        for (let i = 0; i < allPrompts.length; i += B) {
+          const batch = allPrompts.slice(i, i + B);
+          setProgress(`Teaching the AI ${WASTE_ITEMS.length} objects…`, (i / allPrompts.length) * 100);
+          setAIStatus('loading', `Learning objects ${Math.round((i / allPrompts.length) * 100)}%`);
+          const inputs = tokenizer(batch, { padding: 'max_length', truncation: true });
+          const { text_embeds } = await textModel(inputs);
+          dim = text_embeds.dims[text_embeds.dims.length - 1];
+          const data = text_embeds.data;
+          for (let r = 0; r < batch.length; r++) out.push(l2norm(Float32Array.from(data.subarray(r * dim, (r + 1) * dim))));
+          await sleep(0); // keep the page responsive
+        }
+        promptEmb = new Float32Array(out.length * dim);
+        out.forEach((v, i) => promptEmb.set(v, i * dim));
+        try { localStorage.setItem(cacheKey, JSON.stringify({ dim, b64: f32ToB64(promptEmb) })); } catch (e) { console.warn('Could not cache embeddings', e); }
+        try { await textModel.dispose(); } catch (e) {}
+      }
+
+      // Average the prompt embeddings of each class ("prompt ensembling")
+      const classEmb = new Float32Array(classes.length * dim);
+      let p = 0;
+      classes.forEach((c, ci) => {
+        const v = new Float32Array(dim);
+        for (let k = 0; k < c.prompts.length; k++, p++) for (let d = 0; d < dim; d++) v[d] += promptEmb[p * dim + d];
+        classEmb.set(l2norm(v), ci * dim);
+      });
+
+      // 2) Image side
+      setProgress('Downloading AI (2/2)…', 0);
+      AI.processor = await T.AutoProcessor.from_pretrained(CLIP_CFG.model, { progress_callback: progressCb('Downloading AI (2/2)') });
+      AI.vision = await T.CLIPVisionModelWithProjection.from_pretrained(CLIP_CFG.model, { quantized: false, progress_callback: progressCb('Downloading AI (2/2)') });
+      AI.classes = classes; AI.textEmb = classEmb; AI.dim = dim;
+
+      // Warm-up so the first real scan is fast
+      setProgress('Warming up…', 100);
+      const warm = document.createElement('canvas'); warm.width = warm.height = 64;
+      await embedImages([squareCrop(warm, 1)]);
+    }
+
+    // Center square crop of a canvas. `frac` = fraction of the short side (1 = full square, 0.65 = tighter zoom)
+    function squareCrop(src, frac) {
+      const side = Math.round(Math.min(src.width, src.height) * frac);
+      const x = Math.round((src.width - side) / 2), y = Math.round((src.height - side) / 2);
+      const c = document.createElement('canvas'); c.width = c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(src, x, y, side, side, 0, 0, 256, 256);
+      return c;
+    }
+
+    function canvasToRaw(c) {
+      const { data, width, height } = c.getContext('2d').getImageData(0, 0, c.width, c.height);
+      const rgb = new Uint8ClampedArray(width * height * 3);
+      for (let i = 0, j = 0; i < data.length; i += 4, j += 3) { rgb[j] = data[i]; rgb[j + 1] = data[i + 1]; rgb[j + 2] = data[i + 2]; }
+      return new AI.T.RawImage(rgb, width, height, 3);
+    }
+
+    async function embedImages(canvases) {
+      const inputs = await AI.processor(canvases.map(canvasToRaw));
+      const { image_embeds } = await AI.vision(inputs);
+      const dim = image_embeds.dims[image_embeds.dims.length - 1];
+      return canvases.map((_, i) => l2norm(Float32Array.from(image_embeds.data.subarray(i * dim, (i + 1) * dim))));
+    }
+
+    function softmax(arr) {
+      const m = Math.max(...arr); const e = arr.map(x => Math.exp(x - m)); const s = e.reduce((a, b) => a + b, 0);
+      return e.map(x => x / s);
+    }
+
+    async function clipAnalyze(frames) {
+      // Two views per frame: tight zoom on the aim frame + the whole visible square
+      const views = [], weights = [];
+      frames.forEach(f => { views.push(squareCrop(f, 0.65)); weights.push(0.55); views.push(squareCrop(f, 1)); weights.push(0.45); });
+      const embs = await embedImages(views);
+      const C = AI.classes.length, dim = AI.dim;
+      const logits = new Array(C).fill(0);
+      const wsum = weights.reduce((a, b) => a + b, 0);
+      embs.forEach((v, k) => {
+        for (let c = 0; c < C; c++) {
+          let dot = 0; const off = c * dim;
+          for (let d = 0; d < dim; d++) dot += v[d] * AI.textEmb[off + d];
+          logits[c] += (weights[k] / wsum) * CLIP_CFG.scale * dot;
+        }
+      });
+      const probs = softmax(logits);
+      const order = probs.map((p, i) => [p, i]).sort((a, b) => b[0] - a[0]);
+      const bgProb = AI.classes.reduce((s, c, i) => s + (c.id ? 0 : probs[i]), 0);
+      const ranked = order.filter(([, i]) => AI.classes[i].id).map(([p, i]) => ({ item: ITEM_BY_ID[AI.classes[i].id], conf: p }));
+      const rawTop = order.slice(0, 3).map(([p, i]) => [AI.classes[i].label, p]);
+      return { ranked, rawTop, box: null, background: !AI.classes[order[0][1]].id, bgProb };
+    }
+
+    /* ---------- Backup engine: MobileNet + COCO-SSD ---------- */
+    function loadScript(src) {
+      return new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = src; s.async = true;
+        s.onload = res; s.onerror = () => rej(new Error('Failed to load ' + src));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function loadLegacyEngine() {
+      setAIStatus('loading', 'Loading backup AI…');
+      if (typeof tf === 'undefined') await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js');
+      if (typeof mobilenet === 'undefined') await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js');
+      try { if (typeof cocoSsd === 'undefined') await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js'); } catch (e) {}
+      try { await tf.setBackend('webgl'); } catch (e) { try { await tf.setBackend('cpu'); } catch (_) {} }
+      await tf.ready();
+      setProgress('Loading backup AI…', 40);
+      Cam.models.mobilenet = await mobilenet.load({ version: 2, alpha: 1.0 });
+      const warm = document.createElement('canvas'); warm.width = warm.height = 224;
+      await Cam.models.mobilenet.classify(warm);
+      setProgress('Loading backup AI…', 75);
+      if (typeof cocoSsd !== 'undefined') {
+        try { Cam.models.coco = await cocoSsd.load({ base: 'lite_mobilenet_v2' }); } catch (e) { console.warn('COCO-SSD unavailable', e); }
+      }
+    }
+
+    function showCamError(msg) { const el = $('cam-error'); el.innerText = msg; show(el, 'block'); }
+    function hideCamError() { hide('cam-error'); }
+
+    function explainCamError(err) {
+      const n = err && err.name;
+      if (n === 'NotAllowedError' || n === 'SecurityError')
+        return 'Camera permission is blocked. Allow camera access in your browser settings (tap the lock icon next to the address), then tap Start Camera again. You can also use "Photo".';
+      if (n === 'NotFoundError' || n === 'OverconstrainedError' || n === 'DevicesNotFoundError')
+        return 'No camera was found on this device. Use "Photo" to upload a picture instead.';
+      if (n === 'NotReadableError' || n === 'TrackStartError')
+        return 'The camera is being used by another app. Close that app and try again.';
+      return 'The camera could not start (' + (err && err.message ? err.message : 'unknown error') + '). Try "Photo" instead.';
+    }
+
+    // Buttons: off → [Start]; live → [Scan]; frozen → [Scan Again]
+    function setCamMode(mode) {
+      const start = $('btn-start-cam'), snap = $('btn-snap'), retake = $('btn-retake');
+      [start, snap, retake].forEach(b => hide(b));
+      if (mode === 'off') show(start);
+      if (mode === 'live') show(snap);
+      if (mode === 'frozen') show(retake);
+      const live = mode === 'live';
+      $('scanner-line').classList.toggle('hidden', !live);
+      $('aim-guide').classList.toggle('hidden', !live);
+      $('webcam').classList.toggle('hidden', !live);
+      $('camera-canvas').classList.toggle('hidden', mode !== 'frozen');
+      $('camera-placeholder').classList.toggle('hidden', mode !== 'off');
+      if (mode !== 'live') hide('btn-flip');
+    }
+
+    async function startCamera() {
+      onFirstInteraction();
+      hideCamError();
+      if (!window.isSecureContext) {
+        showCamError('The live camera only works on a secure page (https:// or localhost). Open this game from an https link, or use "Photo" — it can open your phone camera too.');
+        return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showCamError('This browser cannot open the live camera (in-app browsers like Instagram/Facebook often block it). Open the page in Chrome or Safari, or use "Photo".');
+        return;
+      }
+      const btn = $('btn-start-cam');
+      btn.disabled = true;
+      btn.innerHTML = '<span>Opening camera…</span>';
+      stopCamera(true);
+
+      // IMPORTANT: request the camera first (inside the tap) — iOS rejects it after long awaits.
+      const attempts = [
+        { video: { facingMode: { ideal: Cam.facing }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+        { video: { facingMode: Cam.facing }, audio: false },
+        { video: true, audio: false }
+      ];
+      let stream = null, lastErr = null;
+      for (const c of attempts) {
+        try { stream = await navigator.mediaDevices.getUserMedia(c); break; }
+        catch (e) { lastErr = e; if (e.name === 'NotAllowedError' || e.name === 'SecurityError') break; }
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="power" class="w-5 h-5"></i><span>Start Camera</span>';
+      refreshIcons();
+      if (!stream) { showCamError(explainCamError(lastErr)); setCamMode('off'); return; }
+
+      Cam.stream = stream;
+      const video = $('webcam');
+      video.muted = true;
+      video.setAttribute('muted', '');
+      video.setAttribute('playsinline', '');
+      video.setAttribute('webkit-playsinline', '');
+      video.srcObject = stream;
+      await waitForVideo(video);
+      try { await video.play(); } catch (e) { /* autoplay already allowed via muted+playsinline */ }
+      const settings = stream.getVideoTracks()[0]?.getSettings?.() || {};
+      const isFront = settings.facingMode ? settings.facingMode === 'user' : Cam.facing === 'user';
+      video.style.transform = isFront ? 'scaleX(-1)' : '';
+
+      setCamMode('live');
+      hideResultCard();
+      updateFlipButton();
+      ensureModels().catch(() => {});
+    }
+
+    function waitForVideo(v) {
+      return new Promise(res => {
+        if (v.readyState >= 1 && v.videoWidth) return res();
+        const t = setTimeout(res, 4000);
+        v.onloadedmetadata = () => { clearTimeout(t); res(); };
+      });
+    }
+
+    async function updateFlipButton() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cams = devices.filter(d => d.kind === 'videoinput');
+        if (cams.length > 1 && Cam.stream) show('btn-flip', 'block'); else hide('btn-flip');
+      } catch (e) { hide('btn-flip'); }
+    }
+
+    function flipCamera() {
+      Cam.facing = Cam.facing === 'environment' ? 'user' : 'environment';
+      startCamera();
+    }
+
+    function stopCamera(keepUI) {
+      if (Cam.stream) {
+        Cam.stream.getTracks().forEach(t => t.stop());
+        Cam.stream = null;
+      }
+      const v = $('webcam');
+      v.srcObject = null;
+      if (!keepUI) { setCamMode('off'); hideResultCard(); }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && Cam.stream) stopCamera();
+    });
+
+    function grabFrame(src) {
+      const sw = src.videoWidth || src.naturalWidth || src.width;
+      const sh = src.videoHeight || src.naturalHeight || src.height;
+      const scale = Math.min(1, 640 / Math.max(sw, sh));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(sw * scale));
+      c.height = Math.max(1, Math.round(sh * scale));
+      c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+      return c;
+    }
+
+    function cropCanvas(src, box) {
+      let [x, y, w, h] = box;
+      const pad = 0.12;
+      x -= w * pad; y -= h * pad; w *= 1 + 2 * pad; h *= 1 + 2 * pad;
+      // make it square-ish, as MobileNet expects
+      const side = Math.max(w, h);
+      x -= (side - w) / 2; y -= (side - h) / 2;
+      x = Math.max(0, x); y = Math.max(0, y);
+      const sw = Math.min(side, src.width - x), sh = Math.min(side, src.height - y);
+      const c = document.createElement('canvas');
+      c.width = c.height = 224;
+      c.getContext('2d').drawImage(src, x, y, sw, sh, 0, 0, 224, 224);
+      return c;
+    }
+
+    function freezeDisplay(frame, box) {
+      const canvas = $('camera-canvas');
+      canvas.width = frame.width; canvas.height = frame.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(frame, 0, 0);
+      if (box) {
+        ctx.lineWidth = Math.max(3, frame.width / 160);
+        ctx.strokeStyle = '#22d3ee';
+        ctx.setLineDash([12, 8]);
+        ctx.strokeRect(box[0], box[1], box[2], box[3]);
+      }
+    }
+
+    function setScanning(on, text) {
+      Cam.busy = on;
+      $('scan-overlay-text').innerText = text || 'Analyzing…';
+      if (on) show('scan-overlay'); else hide('scan-overlay');
+    }
+
+    async function captureAndScan() {
+      onFirstInteraction();
+      const video = $('webcam');
+      if (Cam.busy || !Cam.stream || !video.videoWidth) return;
+      setScanning(true, AI.mode ? 'Analyzing…' : 'Loading AI (first time only)…');
+      try { await ensureModels(); } catch (e) { setScanning(false); return; }
+      setScanning(true, 'Looking closely…');
+      // Take a few frames a moment apart and combine them: more stable than a single frame
+      const n = AI.mode === 'clip' ? 2 : 3;
+      const frames = [];
+      for (let i = 0; i < n; i++) { frames.push(grabFrame(video)); if (i < n - 1) await sleep(180); }
+      freezeDisplay(frames[frames.length - 1]);
+      setCamMode('frozen');
+      await runAnalysis(frames);
+    }
+
+    $('photo-input').addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      onFirstInteraction();
+      hideCamError();
+      if (Cam.stream) stopCamera(true);
+      try {
+        const img = await loadImageFile(file);
+        const frame = grabFrame(img);
+        freezeDisplay(frame);
+        setCamMode('frozen');
+        setScanning(true, AI.mode ? 'Analyzing…' : 'Loading AI (first time only)…');
+        await ensureModels();
+        await runAnalysis([frame]);
+      } catch (err) {
+        setScanning(false);
+        showCamError('That image could not be analyzed. Try another photo (JPG or PNG).');
+      }
+    });
+
+    function loadImageFile(file) {
+      return new Promise((res, rej) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => { res(img); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+        img.onerror = rej;
+        img.src = url;
+      });
+    }
+
+    async function runAnalysis(frames) {
+      setScanning(true, 'Identifying object…');
+      try {
+        const result = await analyzeFrames(frames);
+        freezeDisplay(frames[frames.length - 1], result.box);
+        setScanning(false);
+        showScanResult(result);
+      } catch (err) {
+        console.error(err);
+        setScanning(false);
+        showCamError('Something went wrong while analyzing. Please try again.');
+      }
+    }
+
+    async function analyzeFrames(frames) {
+      return AI.mode === 'clip' ? clipAnalyze(frames) : legacyAnalyze(frames);
+    }
+
+    async function legacyAnalyze(frames) {
+      const scores = new Map();
+      const raw = new Map();
+      const add = (id, v) => scores.set(id, (scores.get(id) || 0) + v);
+      const addRaw = (label, p) => raw.set(label, Math.max(raw.get(label) || 0, p));
+      let lastBox = null;
+
+      for (const f of frames) {
+        let crop = null;
+        // Step 1: detector finds the main object and where it is
+        if (Cam.models.coco) {
+          try {
+            const dets = await Cam.models.coco.detect(f, 10, 0.3);
+            const area = f.width * f.height;
+            const cand = dets.filter(d => !IGNORE_COCO.has(d.class));
+            if (cand.length) {
+              const rank = d => d.score * Math.sqrt((d.bbox[2] * d.bbox[3]) / area);
+              cand.sort((a, b) => rank(b) - rank(a));
+              const d = cand[0];
+              lastBox = d.bbox;
+              const id = COCO_INDEX.get(d.class);
+              if (id) add(id, d.score * 0.8);
+              addRaw(d.class, d.score);
+              crop = cropCanvas(f, d.bbox);
+            }
+          } catch (e) { console.warn(e); }
+        }
+        // Step 2: classifier looks at the cropped object (and the whole frame as backup)
+        const preds = [];
+        if (crop) (await Cam.models.mobilenet.classify(crop, 5)).forEach(p => preds.push({ ...p, w: 1.0 }));
+        (await Cam.models.mobilenet.classify(f, 5)).forEach(p => preds.push({ ...p, w: crop ? 0.6 : 1.0 }));
+
+        for (const p of preds) {
+          const syns = p.className.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+          addRaw(syns[0], p.probability);
+          const hit = syns.find(s => IMAGENET_INDEX.has(s));
+          if (hit) add(IMAGENET_INDEX.get(hit), p.probability * p.w);
+        }
+      }
+
+      const ranked = [...scores.entries()]
+        .map(([id, s]) => ({ item: ITEM_BY_ID[id], conf: Math.min(0.99, s / frames.length) }))
+        .sort((a, b) => b.conf - a.conf);
+      const rawTop = [...raw.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+      return { ranked, rawTop, box: lastBox };
+    }
+
+    function hideResultCard() { hide('camera-result-card'); Cam.scanItem = null; }
+
+    function showScanResult(result) {
+      const card = $('camera-result-card');
+      show(card);
+      Cam.confirmedThisScan = false;
+      const best = result.ranked[0];
+      const guessMin = AI.mode === 'clip' ? CLIP_CFG.guess : 0.12;
+      const usable = best && best.conf >= guessMin && !result.background;
+
+      $('cam-ai-saw').innerText = result.rawTop.length
+        ? 'AI saw: ' + result.rawTop.map(([l, p]) => `${l} (${Math.round(p * 100)}%)`).join(' · ')
+        : 'AI saw: nothing clear';
+
+      // Alternatives: the next best guesses
+      const alts = result.ranked.slice(usable ? 1 : 0, usable ? 4 : 4).filter(r => r.conf >= 0.02);
+      $('cam-alternatives').innerHTML = alts.map(r =>
+        `<button data-pick="${r.item.id}" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">${r.item.emoji} ${esc(r.item.word)} <span class="text-slate-500">${Math.round(r.conf * 100)}%</span></button>`
+      ).join('');
+      $('cam-alt-title').innerText = usable ? 'Not right? Choose:' : (alts.length ? 'Is it one of these?' : 'Choose the item:');
+      $('cam-manual-select').value = '';
+
+      if (usable) {
+        hide('cam-uncertain');
+        setScanItem(best.item, best.conf);
+      } else {
+        show('cam-uncertain');
+        $('cam-uncertain').querySelector('h3').innerText = result.background ? "I can't see an object 👀" : "Hmm, I'm not sure 🤔";
+        $('cam-uncertain').querySelector('p').innerText = result.background
+          ? 'Hold ONE object inside the dashed frame, close to the camera, and scan again — or pick it below.'
+          : 'Pick the correct item below, or try again closer, with one object and good light.';
+        hide('cam-identified'); hide('cam-reveal');
+        Cam.scanItem = null;
+        Speech.speak(result.background ? 'Please show me one object.' : "I'm not sure. Please choose the item.", { auto: true, rate: 0.95 });
+      }
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function setScanItem(item, conf) {
+      Cam.scanItem = item;
+      hide('cam-uncertain');
+      show('cam-identified');
+      $('cam-item-emoji').innerText = item.emoji;
+      $('cam-item-word').innerText = item.word;
+      $('cam-item-phonetic').innerText = item.phonetic;
+      $('cam-item-def').innerText = item.definition;
+      const sure = conf != null && conf >= (AI.mode === 'clip' ? CLIP_CFG.confident : 0.25);
+      $('cam-confidence').innerText = conf == null ? 'Chosen by you' : sure ? `${Math.round(conf * 100)}% sure` : `Best guess · ${Math.round(conf * 100)}%`;
+      $('cam-confidence').className = 'text-xs font-bold px-2.5 py-1 rounded-lg border shrink-0 ' +
+        (conf == null ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
+          : sure ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+          : 'bg-amber-500/15 text-amber-300 border-amber-500/30');
+      teachBin(item);
+    }
+
+    // Why each bin — short teaching explanation
+    const BIN_WHY = {
+      white:   'It is a clean material (plastic, glass, paper, cardboard or metal) that can be recycled into new products.',
+      green:   'It is organic: it comes from food or plants and turns into compost (natural fertilizer).',
+      black:   'It is dirty, sanitary or made of mixed materials, so it cannot be recycled or composted.',
+      special: 'It contains toxic or hazardous parts. It must NOT go in household bins — take it to a collection point.'
+    };
+
+    function binSpeechName(bin) {
+      return { white: 'the white bin', green: 'the green bin', black: 'the black bin', special: 'a special collection point' }[bin];
+    }
+
+    function teachBin(item) {
+      const bin = BINS[item.bin];
+      show('cam-reveal');
+      $('cam-bin-box').className = `p-4 rounded-2xl flex items-center gap-4 bg-slate-900 border-2 ${bin.glow}`;
+      $('cam-bin-icon').className = `w-16 h-16 shrink-0 rounded-2xl flex items-center justify-center text-3xl font-bold ${bin.chip}`;
+      $('cam-bin-icon').innerText = bin.icon;
+      $('cam-bin-name').innerText = bin.label;
+      $('cam-bin-name').className = `font-heading font-bold text-xl tracking-wide ${bin.title}`;
+      $('cam-bin-short').innerText = bin.short;
+      $('cam-bin-guide').innerText = bin.guide;
+      $('cam-why').innerHTML = `<b class="text-slate-100">Why?</b> ${esc(BIN_WHY[item.bin])}`;
+      $('cam-sentence').innerText = '💬 ' + item.sentence;
+
+      hide('cam-feedback');
+      if (Cam.confirmedThisScan) {
+        hide('cam-confirm');
+      } else {
+        const xp = Math.round(15 * comboMultiplier());
+        $('cam-confirm-text').innerText = `Done! I put it in the ${bin.key === 'special' ? 'collection box' : bin.label} (+${xp} XP)`;
+        show('cam-confirm');
+      }
+      refreshIcons();
+      speakScanTeaching({ auto: true });
+    }
+
+    function speakScanTeaching(opts = {}) {
+      const item = Cam.scanItem;
+      if (!item) return;
+      Speech.speak(`${item.word}. It goes in ${binSpeechName(item.bin)}.`, opts);
+    }
+
+    function speakScanItem() { if (Cam.scanItem) Speech.speak(Cam.scanItem.word); }
+
+    // The student confirms they sorted the object as taught → points + real impact stats
+    function confirmScanSort() {
+      const item = Cam.scanItem;
+      if (!item || Cam.confirmedThisScan) return;
+      Cam.confirmedThisScan = true;
+      const res = recordSort(item, true, 'camera');
+      AudioEngine.playCorrect();
+      triggerConfetti();
+      hide('cam-confirm');
+      const fb = $('cam-feedback');
+      fb.innerText = `Great job! +${res.xp} XP · ${fmtMass(res.impact.co2)} CO₂ prevented 🌎`;
+      show(fb, 'block');
+      toast(`+${res.xp} XP · ${fmtWater(res.impact.water)} water · ${fmtEnergy(res.impact.energy)} saved`);
+    }
+
+    function resetCameraView() {
+      hideResultCard();
+      if (Cam.stream) setCamMode('live'); else setCamMode('off');
+      if (Cam.stream) updateFlipButton();
+    }
+
+    /* ==========================================================================
+       9. DICTIONARY
+       ========================================================================== */
+    let dictFilter = 'all';
+    let dictPlace = 'all';
+    let dictQuery = '';
+    const PLACE_BADGE = { classroom: '🏫 Classroom', home: '🏠 Home', both: '🏫 Classroom · 🏠 Home' };
+
+    function renderDictionary() {
+      const grid = $('dictionary-grid');
+      const q = dictQuery.trim().toLowerCase();
+      const items = WASTE_ITEMS.filter(i =>
+        (dictFilter === 'all' || i.bin === dictFilter) &&
+        (dictPlace === 'all' || i.place === dictPlace || i.place === 'both') &&
+        (!q || i.word.toLowerCase().includes(q) || i.definition.toLowerCase().includes(q)));
+
+      document.querySelectorAll('.dict-filter').forEach(btn => {
+        btn.className = 'dict-filter px-3 py-1.5 rounded-lg text-xs font-bold ' +
+          (btn.dataset.filter === dictFilter ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700');
+      });
+      document.querySelectorAll('.dict-place').forEach(btn => {
+        btn.className = 'dict-place px-3 py-1.5 rounded-lg text-xs font-bold ' +
+          (btn.dataset.place === dictPlace ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700');
+      });
+      $('dict-count').innerText = `${items.length} of ${WASTE_ITEMS.length} words · learned ${state.learned.length}`;
+
+      grid.innerHTML = items.length ? items.map(item => {
+        const b = BINS[item.bin];
+        const imp = impactOf(item);
+        const learned = state.learned.includes(item.id);
+        return `
+          <div class="glass-card rounded-2xl p-5 border flex flex-col justify-between glass-card-hover">
+            <div>
+              <div class="flex justify-between items-start mb-3">
+                <div class="text-4xl p-2 bg-slate-900 rounded-xl border border-slate-800">${item.emoji}</div>
+                <div class="flex items-center gap-2">
+                  ${learned ? '<span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg">✓ Learned</span>' : ''}
+                  <button data-speak="${item.id}" class="p-2 text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 rounded-xl transition" title="Listen">
+                    <i data-lucide="volume-2" class="w-5 h-5"></i>
+                  </button>
+                </div>
+              </div>
+              <h4 class="font-heading text-lg font-bold text-white">${esc(item.word)}</h4>
+              <p class="text-xs text-indigo-300 italic font-mono mb-1">${esc(item.phonetic)}</p>
+              <p class="text-[10px] text-emerald-300/80 font-bold mb-2">${PLACE_BADGE[item.place] || ''}</p>
+              <p class="text-xs text-slate-300 mb-3">${esc(item.definition)}</p>
+            </div>
+            <div>
+              <div class="text-[11px] font-semibold text-slate-400 bg-slate-900/90 p-2 rounded-xl border border-slate-800 mb-2">"${esc(item.sentence)}"</div>
+              <div class="text-[10px] text-slate-500 mb-2">Sorting it right saves ≈ ${fmtMass(imp.co2)} CO₂ · ${fmtWater(imp.water)} water · ${fmtEnergy(imp.energy)}</div>
+              <div class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 border ${b.btn} ${b.title} text-center uppercase tracking-wider">${b.icon} ${b.label}</div>
+            </div>
+          </div>`;
+      }).join('') : '<p class="text-slate-400 text-sm col-span-full text-center py-8">No words found. Try another search.</p>';
+      refreshIcons();
+    }
+
+    /* ==========================================================================
+       10. PLAYER UI & REAL-TIME IMPACT
+       ========================================================================== */
+    function fmtMass(kg)    { return kg < 1 ? `${Math.round(kg * 1000)} g` : `${kg.toFixed(2)} kg`; }
+    function fmtWater(l)    { return l < 1 ? `${Math.round(l * 1000)} mL` : `${l.toFixed(1)} L`; }
+    function fmtEnergy(kwh) { return kwh < 1 ? `${Math.round(kwh * 1000)} Wh` : `${kwh.toFixed(2)} kWh`; }
+    function fmtNum(n)      { return n < 10 ? n.toFixed(1) : Math.round(n).toLocaleString('en-US'); }
+
+    const shown = { co2: 0, water: 0, energy: 0, items: 0 };
+    let tweenId = null;
+
+    function animateImpact() {
+      const target = { ...state.impact, items: state.totalSorted };
+      const from = { ...shown };
+      const t0 = performance.now(), dur = 800;
+      cancelAnimationFrame(tweenId);
+      const step = t => {
+        const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+        for (const key in target) shown[key] = from[key] + (target[key] - from[key]) * e;
+        renderImpactNumbers();
+        if (k < 1) tweenId = requestAnimationFrame(step);
+      };
+      tweenId = requestAnimationFrame(step);
+    }
+
+    function renderImpactNumbers() {
+      $('impact-co2').innerText = fmtMass(shown.co2);
+      $('impact-water').innerText = fmtWater(shown.water);
+      $('impact-energy').innerText = fmtEnergy(shown.energy);
+      const n = Math.round(shown.items);
+      $('impact-items').innerText = `${n} ${n === 1 ? 'Item' : 'Items'}`;
+      $('eq-phone').innerText = fmtNum(shown.energy / 0.012);       // ~12 Wh per smartphone charge
+      $('eq-led').innerText   = fmtNum(shown.energy / 0.009);       // 9 W LED bulb
+      $('eq-tree').innerText  = fmtNum(shown.co2 / (21 / 365));      // a tree absorbs ~21 kg CO₂/year
+    }
+
+    function renderBinBreakdown() {
+      const total = BIN_ORDER.reduce((s, k) => s + state.binCounts[k], 0);
+      $('bin-total').innerText = total;
+      $('bin-bar').innerHTML = total
+        ? BIN_ORDER.map(k => state.binCounts[k] ? `<div style="width:${(state.binCounts[k] / total) * 100}%;background:${BINS[k].color}" class="transition-all duration-500"></div>` : '').join('')
+        : '';
+      $('bin-legend').innerHTML = BIN_ORDER.map(k =>
+        `<span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:${BINS[k].color}"></span>${BINS[k].label.replace(' BIN', '')}: <b class="text-slate-200">${state.binCounts[k]}</b></span>`
+      ).join('');
+    }
+
+    function updatePlayerUI() {
+      const curr = levelForXp(state.xp);
+      const next = HERO_LEVELS.find(l => l.level === curr.level + 1);
+      $('level-badge').innerText = `L${curr.level}`;
+      $('level-title').innerText = curr.name;
+      const pct = next ? Math.min(100, Math.round(((state.xp - curr.minXp) / (next.minXp - curr.minXp)) * 100)) : 100;
+      $('xp-bar').style.width = `${pct}%`;
+      $('xp-text').innerText = next ? `${state.xp}/${next.minXp} XP` : `${state.xp} XP · MAX`;
+
+      const streakEl = $('streak-count');
+      if (streakEl.innerText !== String(state.streak)) { streakEl.classList.remove('bump'); void streakEl.offsetWidth; streakEl.classList.add('bump'); }
+      streakEl.innerText = state.streak;
+
+      const combo = comboMultiplier();
+      const pill = $('combo-pill');
+      if (combo > 1) { pill.innerText = `🔥 x${combo} Combo`; show(pill, 'inline-block'); } else hide(pill);
+      $('score-text').innerText = `Score: ${state.quizScore}`;
+
+      const m = MISSIONS[state.missionIndex % MISSIONS.length];
+      $('quest-desc').innerText = m.desc;
+      $('quest-progress').innerText = `${state.missionProgress}/${m.target}`;
+      $('quest-bar').style.width = `${(state.missionProgress / m.target) * 100}%`;
+
+      $('stat-accuracy').innerText = state.attempts ? `${Math.round((state.correct / state.attempts) * 100)}%` : '—';
+      $('stat-best').innerText = state.bestStreak;
+      $('stat-words').innerText = `${state.learned.length}/${WASTE_ITEMS.length}`;
+
+      animateImpact();
+      renderBinBreakdown();
+    }
+
+    function showModal(isSuccess, title, subtitleHTML, tipText, impact) {
+      const iconBox = $('modal-icon-box');
+      const card = $('modal-card');
+      if (isSuccess) {
+        iconBox.innerHTML = '🎉';
+        iconBox.className = 'w-20 h-20 rounded-full flex items-center justify-center text-4xl shadow-xl bg-emerald-500/20 border border-emerald-500/40';
+        card.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+      } else {
+        iconBox.innerHTML = '💡';
+        iconBox.className = 'w-20 h-20 rounded-full flex items-center justify-center text-4xl shadow-xl bg-amber-500/20 border border-amber-500/40';
+        card.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+      }
+      $('modal-title').innerText = title;
+      $('modal-subtitle').innerHTML = subtitleHTML;
+      $('modal-tip').innerText = tipText;
+      const imp = $('modal-impact');
+      if (impact) {
+        imp.innerHTML = `
+          <div class="bg-slate-900/80 rounded-xl p-2 border border-slate-800"><div>☁️</div><b class="text-emerald-400">+${fmtMass(impact.co2)}</b><div class="text-[10px] text-slate-500">CO₂</div></div>
+          <div class="bg-slate-900/80 rounded-xl p-2 border border-slate-800"><div>💧</div><b class="text-cyan-400">+${fmtWater(impact.water)}</b><div class="text-[10px] text-slate-500">Water</div></div>
+          <div class="bg-slate-900/80 rounded-xl p-2 border border-slate-800"><div>⚡</div><b class="text-amber-400">+${fmtEnergy(impact.energy)}</b><div class="text-[10px] text-slate-500">Energy</div></div>`;
+        show(imp, 'grid');
+      } else hide(imp);
+      show('modal-feedback');
+      refreshIcons();
+      setTimeout(() => $('modal-next').focus(), 50);
+    }
+
+    let toastTimer = null;
+    function toast(msg) {
+      const t = $('toast');
+      t.innerText = msg;
+      t.classList.remove('hidden', 'toast-in'); void t.offsetWidth; t.classList.add('toast-in');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.add('hidden'), 2600);
+    }
+
+    function triggerConfetti(n = 50) {
+      if (typeof confetti === 'function') confetti({ particleCount: n, spread: 70, origin: { y: 0.7 } });
+    }
+
+    /* ==========================================================================
+       10b. STUDENT PROFILE & SEND PROGRESS TO THE TEACHER (Google Form)
+       ========================================================================== */
+    const GAME_NAME = 'EcoQuest Green Mission';
+    const GAME_VERSION = () => `${GAME_NAME} v4 · ${WASTE_ITEMS.length} words`;
+    const FORM = {
+      action: 'https://docs.google.com/forms/d/e/1FAIpQLSd3llx6BgG4hIkrXK9-S84jMMBGlM6FiLmPRhT88V_can_fPQ/formResponse',
+      fields: {
+        name:          'entry.1516306942',
+        grade:         'entry.1140305448',
+        level:         'entry.1115731383',
+        xp:            'entry.703289875',
+        arcadeAnswers: 'entry.1548852717',
+        arcadeCorrect: 'entry.1249998162',
+        accuracy:      'entry.516648866',
+        bestStreak:    'entry.2124260623',
+        itemsSorted:   'entry.799842532',
+        itemsScanned:  'entry.1262891157',
+        wordsLearned:  'entry.1600865904',
+        co2:           'entry.1803250565',
+        water:         'entry.898032855',
+        energy:        'entry.1368222999',
+        weakWords:     'entry.1498289025',
+        version:       'entry.134311060'
+      }
+    };
+
+    function cleanText(t, max) { return String(t || '').replace(/\s+/g, ' ').trim().slice(0, max); }
+    function hasStudent() { return !!(state.student.name && state.student.grade); }
+
+    function openStudentModal() {
+      $('student-name-input').value = state.student.name || '';
+      $('student-grade-input').value = state.student.grade || '';
+      hide('student-form-error');
+      show('modal-student');
+      setTimeout(() => $('student-name-input').focus(), 50);
+    }
+    function closeStudentModal() { hide('modal-student'); }
+
+    $('student-form').addEventListener('submit', e => {
+      e.preventDefault();
+      onFirstInteraction();
+      const name = cleanText($('student-name-input').value, 60);
+      // Normalize group names so the teacher can filter easily: "3 6", "3.6", "3–6", "3/6" → "3-6"
+      const grade = cleanText($('student-grade-input').value, 20).toUpperCase()
+        .replace(/^(\d+)\s*[-–—_.\/\s]\s*(\d+)$/, '$1-$2');
+      if (name.length < 2 || !grade) {
+        $('student-form-error').innerText = 'Please write your name and your group (e.g. 3-6).';
+        show('student-form-error', 'block');
+        return;
+      }
+      state.student = { name, grade };
+      saveState();
+      closeStudentModal();
+      renderStudent();
+      toast(`Hi, ${name.split(' ')[0]}! Let's save the planet 🌎`);
+      if (pendingSendAfterProfile) { pendingSendAfterProfile = false; sendProgress(); }
+    });
+
+    function timeAgo(ts) {
+      const m = Math.round((Date.now() - ts) / 60000);
+      if (m < 1) return 'just now';
+      if (m < 60) return `${m} min ago`;
+      const h = Math.round(m / 60);
+      if (h < 24) return `${h} h ago`;
+      return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function renderStudent() {
+      $('student-name').innerText = hasStudent() ? state.student.name : 'Tap to write your name';
+      const sent = state.sendQueue.length
+        ? '⏳ Waiting for internet to send'
+        : state.lastSent ? `✓ Last sent ${timeAgo(state.lastSent)}` : 'Progress not sent yet';
+      $('student-sub').innerText = `Grade ${state.student.grade || '—'} · ${sent}`;
+    }
+
+    function weakWords() {
+      return Object.entries(state.misses)
+        .filter(([id]) => ITEM_BY_ID[id])
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([id, n]) => `${ITEM_BY_ID[id].word} ×${n}`)
+        .join(', ') || 'None';
+    }
+
+    function buildReport() {
+      const lvl = levelForXp(state.xp);
+      const learned = state.learned.filter(id => ITEM_BY_ID[id]).length;
+      return {
+        name: state.student.name,
+        grade: state.student.grade,
+        level: `${lvl.level} - ${lvl.name}`,
+        xp: String(state.xp),
+        arcadeAnswers: String(state.attempts),
+        arcadeCorrect: String(state.correct),
+        accuracy: state.attempts ? `${Math.round((state.correct / state.attempts) * 100)}%` : '0%',
+        bestStreak: String(state.bestStreak),
+        itemsSorted: String(state.totalSorted),
+        itemsScanned: String(state.scanned),
+        wordsLearned: `${learned}/${WASTE_ITEMS.length}`,
+        co2: String(Math.round(state.impact.co2 * 1000)),
+        water: (Math.round(state.impact.water * 10) / 10).toFixed(1),
+        energy: String(Math.round(state.impact.energy * 1000)),
+        weakWords: weakWords(),
+        version: GAME_VERSION()
+      };
+    }
+
+    async function postToForm(report) {
+      const body = new URLSearchParams();
+      for (const [k, entry] of Object.entries(FORM.fields)) body.append(entry, report[k] ?? '');
+      // Google Forms does not allow reading the reply from another site ("no-cors"),
+      // so a resolved request means it was delivered; a network error means it was not.
+      await fetch(FORM.action, { method: 'POST', mode: 'no-cors', body });
+    }
+
+    let pendingSendAfterProfile = false;
+    let sending = false;
+
+    async function sendProgress() {
+      onFirstInteraction();
+      if (sending) return;
+      if (!hasStudent()) { pendingSendAfterProfile = true; openStudentModal(); return; }
+      if (state.lastSent && Date.now() - state.lastSent < 20000 && !state.sendQueue.length) {
+        toast('✓ Already sent! Keep playing and send again later.');
+        return;
+      }
+      const report = buildReport();
+      sending = true;
+      const btn = $('btn-send');
+      btn.disabled = true; btn.classList.add('opacity-60');
+      $('btn-send-text').innerText = 'Sending…';
+      try {
+        if (navigator.onLine === false) throw new Error('offline');
+        await postToForm(report);
+        state.sendQueue = [];
+        state.lastSent = Date.now();
+        saveState();
+        AudioEngine.playCorrect();
+        triggerConfetti(80);
+        toast(`✓ Progress sent to Teacher Andrea! Great job, ${state.student.name.split(' ')[0]}!`);
+      } catch (err) {
+        state.sendQueue = [report];   // keep only the newest report
+        saveState();
+        toast('📶 No internet. Your progress will be sent automatically when you are back online.');
+      } finally {
+        sending = false;
+        btn.disabled = false; btn.classList.remove('opacity-60');
+        $('btn-send-text').innerText = 'Send my progress to my teacher';
+        renderStudent();
+      }
+    }
+
+    async function flushSendQueue() {
+      if (!state.sendQueue.length || sending || navigator.onLine === false) return;
+      sending = true;
+      try {
+        await postToForm(state.sendQueue[0]);
+        state.sendQueue = [];
+        state.lastSent = Date.now();
+        saveState();
+        toast('✓ Your saved progress was sent to your teacher!');
+      } catch (e) { /* still offline */ }
+      finally { sending = false; renderStudent(); }
+    }
+    window.addEventListener('online', flushSendQueue);
+
+    function resetProgress() {
+      if (!confirm('Reset all XP, statistics and learned words on this device?')) return;
+      const sound = state.soundEnabled, student = state.student;
+      state = clone(DEFAULT_STATE);
+      state.soundEnabled = sound;
+      state.student = student;
+      saveState();
+      updatePlayerUI();
+      renderDictionary();
+      toast('Progress reset. Good luck, Eco Rookie!');
+    }
+
+    /* ==========================================================================
+       11. EVENT WIRING & BOOT
+       ========================================================================== */
+    function boot() {
+      Speech.init();
+      $('arcade-bins').innerHTML = binButtonsHTML('data-bin', false);
+
+      $('arcade-bins').addEventListener('click', e => { const b = e.target.closest('[data-bin]'); if (b) submitAnswer(b.dataset.bin); });
+      $('cam-alternatives').addEventListener('click', e => {
+        const b = e.target.closest('[data-pick]');
+        if (b) setScanItem(ITEM_BY_ID[b.dataset.pick], null);
+      });
+
+      const sel = $('cam-manual-select');
+      sel.innerHTML = '<option value="">— Pick the correct item from the list —</option>' +
+        [...WASTE_ITEMS].sort((a, b) => a.word.localeCompare(b.word)).map(i => `<option value="${i.id}">${i.emoji} ${esc(i.word)}</option>`).join('');
+      sel.addEventListener('change', () => { if (sel.value) setScanItem(ITEM_BY_ID[sel.value], null); });
+
+      $('dict-filters').addEventListener('click', e => {
+        const b = e.target.closest('[data-filter]');
+        if (b) { dictFilter = b.dataset.filter; renderDictionary(); }
+      });
+      $('dict-places').addEventListener('click', e => {
+        const b = e.target.closest('[data-place]');
+        if (b) { dictPlace = b.dataset.place; renderDictionary(); }
+      });
+      $('dict-search').addEventListener('input', e => { dictQuery = e.target.value; renderDictionary(); });
+      $('dictionary-grid').addEventListener('click', e => {
+        const b = e.target.closest('[data-speak]');
+        if (b) Speech.speak(ITEM_BY_ID[b.dataset.speak].word);
+      });
+
+      document.addEventListener('keydown', e => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+        const modalOpen = !$('modal-feedback').classList.contains('hidden');
+        if (activeTab === 'arcade' && !modalOpen && ['1', '2', '3', '4'].includes(e.key)) submitAnswer(BIN_ORDER[+e.key - 1]);
+        if (modalOpen && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); closeModalNext(); }
+      });
+
+      renderSoundIcon();
+      loadQuizQuestion();
+      renderDictionary();
+      updatePlayerUI();
+      renderStudent();
+      refreshIcons();
+      setInterval(renderStudent, 60000);
+      flushSendQueue();
+      if (!hasStudent()) setTimeout(openStudentModal, 400);
+    }
+
+    if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', boot);
+    else boot();
+  </script>
+</body>
+</html>
