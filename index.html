@@ -383,8 +383,8 @@
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
           <div class="text-2xl mb-1">☁️</div>
-          <div class="font-heading font-extrabold text-xl text-emerald-400" id="impact-co2">0 g</div>
-          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">CO₂ Prevented (g)</div>
+          <div class="font-heading font-extrabold text-xl text-emerald-400" id="impact-co2">0.00 kg</div>
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">CO₂ Prevented (kg)</div>
         </div>
         <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
           <div class="text-2xl mb-1">💧</div>
@@ -393,8 +393,8 @@
         </div>
         <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
           <div class="text-2xl mb-1">⚡</div>
-          <div class="font-heading font-extrabold text-xl text-amber-400" id="impact-energy">0 Wh</div>
-          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Electricity Saved (Wh)</div>
+          <div class="font-heading font-extrabold text-xl text-amber-400" id="impact-energy">0.00 kWh</div>
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Electricity Saved (kWh)</div>
         </div>
         <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
           <div class="text-2xl mb-1">♻️</div>
@@ -2078,17 +2078,18 @@
     /* ==========================================================================
        10. PLAYER UI & REAL-TIME IMPACT
        ========================================================================== */
-    // FIXED UNITS, identical to the teacher's Google Form, chosen so every total is a WHOLE number
-    // (no decimal point/comma problems in Google Sheets and clean charts):
-    //   CO₂ → grams (g) · Water → liters (L) · Electricity → watt-hours (Wh)
-    // The number on screen is exactly the number sent to the form.
+    // FIXED UNITS, identical to the teacher's Google Form:
+    //   CO₂ → kilograms (kg, 2 decimals) · Water → liters (L, whole number) · Electricity → kilowatt-hours (kWh, 2 decimals)
+    // Totals use exactly the same rounding as the form, so the number on screen is the number sent.
     const int = n => String(Math.round(n));
-    function fmtMass(kg)         { return `${int(kg * 1000)} g`; }
-    function fmtMassTotal(kg)    { return `${int(kg * 1000)} g`; }
-    function fmtWater(l)         { return `${l < 10 ? (Math.round(l * 10) / 10).toString() : int(l)} L`; } // per item (small amounts)
+    const r2 = n => (Math.round(n * 100) / 100).toFixed(2);
+    const r3 = n => (Math.round(n * 1000) / 1000).toFixed(3);
+    function fmtMass(kg)         { return `${r3(kg)} kg`; }                                                  // per item (small amounts)
+    function fmtMassTotal(kg)    { return `${r2(kg)} kg`; }                                                  // totals = form value
+    function fmtWater(l)         { return `${l < 10 ? (Math.round(l * 10) / 10).toString() : int(l)} L`; }   // per item (small amounts)
     function fmtWaterTotal(l)    { return `${int(l)} L`; }                                                   // totals = form value
-    function fmtEnergy(kwh)      { return `${int(kwh * 1000)} Wh`; }
-    function fmtEnergyTotal(kwh) { return `${int(kwh * 1000)} Wh`; }
+    function fmtEnergy(kwh)      { return `${r3(kwh)} kWh`; }                                                // per item
+    function fmtEnergyTotal(kwh) { return `${r2(kwh)} kWh`; }                                                // totals = form value
     function fmtNum(n)      { return n < 10 ? n.toFixed(1) : Math.round(n).toLocaleString('en-US'); }
 
     const shown = { co2: 0, water: 0, energy: 0, items: 0 };
@@ -2206,7 +2207,7 @@
        10b. STUDENT PROFILE & SEND PROGRESS TO THE TEACHER (Google Form)
        ========================================================================== */
     const GAME_NAME = 'EcoQuest Green Mission';
-    const GAME_VERSION = () => `${GAME_NAME} v4.4 · ${WASTE_ITEMS.length} words`;
+    const GAME_VERSION = () => `${GAME_NAME} v4.5 · ${WASTE_ITEMS.length} words`;
     const FORM = {
       action: 'https://docs.google.com/forms/d/e/1FAIpQLSd3llx6BgG4hIkrXK9-S84jMMBGlM6FiLmPRhT88V_can_fPQ/formResponse',
       fields: {
@@ -2304,9 +2305,10 @@
         itemsSorted: String(state.totalSorted),
         itemsScanned: String(state.scanned),
         wordsLearned: String(learned),
-        co2: String(Math.round(state.impact.co2 * 1000)),      // grams, whole number
+        // kg and kWh need decimals: sent with a decimal COMMA (1,25) so the Spanish-language Google Sheet reads them as numbers
+        co2: r2(state.impact.co2).replace('.', ','),           // kilograms
         water: String(Math.round(state.impact.water)),         // liters, whole number
-        energy: String(Math.round(state.impact.energy * 1000)), // watt-hours, whole number
+        energy: r2(state.impact.energy).replace('.', ','),     // kilowatt-hours
         weakWords: weakWords(),
         version: GAME_VERSION()
       };
