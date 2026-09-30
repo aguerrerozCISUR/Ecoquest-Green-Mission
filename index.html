@@ -2198,7 +2198,7 @@
        10b. STUDENT PROFILE & SEND PROGRESS TO THE TEACHER (Google Form)
        ========================================================================== */
     const GAME_NAME = 'EcoQuest Green Mission';
-    const GAME_VERSION = () => `${GAME_NAME} v4 · ${WASTE_ITEMS.length} words`;
+    const GAME_VERSION = () => `${GAME_NAME} v4.1 · ${WASTE_ITEMS.length} words`;
     const FORM = {
       action: 'https://docs.google.com/forms/d/e/1FAIpQLSd3llx6BgG4hIkrXK9-S84jMMBGlM6FiLmPRhT88V_can_fPQ/formResponse',
       fields: {
@@ -2289,13 +2289,15 @@
         xp: String(state.xp),
         arcadeAnswers: String(state.attempts),
         arcadeCorrect: String(state.correct),
-        accuracy: state.attempts ? `${Math.round((state.correct / state.attempts) * 100)}%` : '0%',
+        // All figures are sent as whole numbers (no decimals, no symbols) so Google Sheets
+        // reads them as numbers in any language setting (Spanish uses commas, English uses dots).
+        accuracy: String(state.attempts ? Math.round((state.correct / state.attempts) * 100) : 0),
         bestStreak: String(state.bestStreak),
         itemsSorted: String(state.totalSorted),
         itemsScanned: String(state.scanned),
-        wordsLearned: `${learned}/${WASTE_ITEMS.length}`,
+        wordsLearned: String(learned),
         co2: String(Math.round(state.impact.co2 * 1000)),
-        water: (Math.round(state.impact.water * 10) / 10).toFixed(1),
+        water: String(Math.round(state.impact.water)),
         energy: String(Math.round(state.impact.energy * 1000)),
         weakWords: weakWords(),
         version: GAME_VERSION()
