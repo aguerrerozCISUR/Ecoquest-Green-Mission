@@ -384,17 +384,17 @@
         <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
           <div class="text-2xl mb-1">☁️</div>
           <div class="font-heading font-extrabold text-xl text-emerald-400" id="impact-co2">0 g</div>
-          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">CO₂ Prevented</div>
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">CO₂ Prevented (g)</div>
         </div>
         <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
           <div class="text-2xl mb-1">💧</div>
-          <div class="font-heading font-extrabold text-xl text-cyan-400" id="impact-water">0 mL</div>
-          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Water Saved</div>
+          <div class="font-heading font-extrabold text-xl text-cyan-400" id="impact-water">0 L</div>
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Water Saved (L)</div>
         </div>
         <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
           <div class="text-2xl mb-1">⚡</div>
           <div class="font-heading font-extrabold text-xl text-amber-400" id="impact-energy">0 Wh</div>
-          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Electricity Saved</div>
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Electricity Saved (Wh)</div>
         </div>
         <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
           <div class="text-2xl mb-1">♻️</div>
@@ -2078,9 +2078,13 @@
     /* ==========================================================================
        10. PLAYER UI & REAL-TIME IMPACT
        ========================================================================== */
-    function fmtMass(kg)    { return kg < 1 ? `${Math.round(kg * 1000)} g` : `${kg.toFixed(2)} kg`; }
-    function fmtWater(l)    { return l < 1 ? `${Math.round(l * 1000)} mL` : `${l.toFixed(1)} L`; }
-    function fmtEnergy(kwh) { return kwh < 1 ? `${Math.round(kwh * 1000)} Wh` : `${kwh.toFixed(2)} kWh`; }
+    // FIXED UNITS, identical to the teacher's Google Form: CO₂ in grams (g), water in liters (L), electricity in watt-hours (Wh).
+    // Totals are whole numbers, so the number on screen is exactly the number sent to the form.
+    const int = n => Math.round(n).toLocaleString('en-US');
+    function fmtMass(kg)       { return `${int(kg * 1000)} g`; }
+    function fmtWater(l)       { return `${l < 10 ? (Math.round(l * 10) / 10).toString() : int(l)} L`; } // per item (small amounts)
+    function fmtWaterTotal(l)  { return `${int(l)} L`; }                                                   // totals = form value
+    function fmtEnergy(kwh)    { return `${int(kwh * 1000)} Wh`; }
     function fmtNum(n)      { return n < 10 ? n.toFixed(1) : Math.round(n).toLocaleString('en-US'); }
 
     const shown = { co2: 0, water: 0, energy: 0, items: 0 };
@@ -2102,7 +2106,7 @@
 
     function renderImpactNumbers() {
       $('impact-co2').innerText = fmtMass(shown.co2);
-      $('impact-water').innerText = fmtWater(shown.water);
+      $('impact-water').innerText = fmtWaterTotal(shown.water);
       $('impact-energy').innerText = fmtEnergy(shown.energy);
       const n = Math.round(shown.items);
       $('impact-items').innerText = `${n} ${n === 1 ? 'Item' : 'Items'}`;
@@ -2198,7 +2202,7 @@
        10b. STUDENT PROFILE & SEND PROGRESS TO THE TEACHER (Google Form)
        ========================================================================== */
     const GAME_NAME = 'EcoQuest Green Mission';
-    const GAME_VERSION = () => `${GAME_NAME} v4.1 · ${WASTE_ITEMS.length} words`;
+    const GAME_VERSION = () => `${GAME_NAME} v4.2 · ${WASTE_ITEMS.length} words`;
     const FORM = {
       action: 'https://docs.google.com/forms/d/e/1FAIpQLSd3llx6BgG4hIkrXK9-S84jMMBGlM6FiLmPRhT88V_can_fPQ/formResponse',
       fields: {
